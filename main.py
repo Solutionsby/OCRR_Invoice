@@ -2,6 +2,12 @@ from pathlib import Path
 from pdf2image import convert_from_path
 import pytesseract
 from file_renamer import rename_file
+import shutil
+
+# Folder wejściowy i wyjściowy
+SOURCE_DIR = Path("./faktury_surowe")
+DEST_DIR = Path("./faktury_przetworzone")
+DEST_DIR.mkdir(exist_ok=True)
 
 # OCR: konwersja PDF → obrazy
 def pdf_to_images(pdf_path: Path):
@@ -16,30 +22,30 @@ def extract_text_from_images(images):
         full_text += text + "\n"
     return full_text.strip()
 
-def main():
-    pdf_path_str = input("Podaj ścieżkę do pliku PDF: ").strip()
-    pdf_path = Path(pdf_path_str)
+def process_single_pdf(pdf_path: Path):
+    try:
+        print(f"\n📄 Przetwarzam plik: {pdf_path.name}")
+        images = pdf_to_images(pdf_path)
+        extracted_text = extract_text_from_images(images)
+        result = rename_file(pdf_path, extracted_text)
 
-    if not pdf_path.exists() or not pdf_path.suffix.lower() == ".pdf":
-        print("Błąd: Nieprawidłowa ścieżka lub nie jest to plik PDF.")
+        # Przenieś plik do folderu przetworzonych
+        target_path = DEST_DIR / result["new_path"].name
+        shutil.move(str(result["new_path"]), target_path)
+
+        print(f"✅ Gotowe: {target_path.name}")
+
+    except Exception as e:
+        print(f"❌ Błąd przy {pdf_path.name}: {e}")
+
+def main():
+    pdf_files = list(SOURCE_DIR.glob("*.pdf"))
+    if not pdf_files:
+        print("Brak plików PDF do przetworzenia.")
         return
 
-    print("\n[1] Konwertuję PDF na obrazy...")
-    images = pdf_to_images(pdf_path)
-
-    print("[2] Wydobywam tekst za pomocą OCR...")
-    extracted_text = extract_text_from_images(images)
-
-    print("[3] Zmieniam nazwę pliku i wyciągam dane...")
-    result = rename_file(pdf_path, extracted_text)
-
-    # Wyświetlenie wyciągniętych danych
-    print(f"\n➡️ Firma:           {result['firm_name']}")
-    print(f"➡️ Nr faktury:      {result['invoice_number']}")
-    print(f"➡️ Data faktury:    {result['invoice_date']}")
-
-
-    print("\nGotowe.")
+    for pdf_path in pdf_files:
+        process_single_pdf(pdf_path)
 
 if __name__ == "__main__":
     main()

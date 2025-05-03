@@ -1,13 +1,21 @@
 import re
 
 def extract_invoice_number(text: str) -> str:
-    prefixes = ["E-", "FS/", "F/"]
-    lines = text.splitlines()
+    # Normalizujemy tekst, np. usuwamy podwójne spacje
+    text = re.sub(r"\s+", " ", text)
 
-    for line in lines:
-        for prefix in prefixes:
-            if prefix in line:
-                match = re.search(rf"{re.escape(prefix)}[\w\-/.]+", line)
-                if match:
-                    return match.group(0)
+    # Szukamy wzorców numerów faktur z typowymi prefiksami
+    patterns = [
+        r"(F\s*/\s*\d+/\d+/\d+)",
+        r"(?:FS/\d+/\d+/\d+)",
+        r"(?:E-\d+/\d+/\d+)",
+        r"(?:VAT\s*\d+/\d+/\d+)"
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            # Usuwamy zbędne spacje w dopasowanym ciągu
+            return re.sub(r"\s+", "", match.group(0))
+
     return "brak-nr"
