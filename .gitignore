@@ -1,4 +1,4 @@
-wenv/
+venv/
 
 __pycache__/
 *.pyc
@@ -7,3 +7,4 @@ __pycache__/
 .DS_Store
 faktury_surowe/
 faktury_przetworzone/
+dane/
