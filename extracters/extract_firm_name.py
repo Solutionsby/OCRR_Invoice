@@ -6,7 +6,11 @@ def extract_firm_name(text: str) -> str:
                 clean_line = next_line.strip()
                 if clean_line:
                     name = "".join(c for c in clean_line if c.isalnum() or c in (' ', '_', '-')).strip()
-                    name = name.replace(" 00", " oo").replace(" 0", " o").replace("Sp z oo", "Sp. z o.o.")
+                    name = name.replace("0.0.", "o.o.")
+                    name = name.replace(" 00", " oo")
+                    name = name.replace(" 0", " o")
+                    name = name.replace("Sp z oo", "Sp. z o.o.")   
+                    name = name.replace("sp z oo", "Sp. z o.o.")     
                     return name
             break
     return "dokument"

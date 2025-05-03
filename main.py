@@ -3,6 +3,7 @@ from pdf2image import convert_from_path
 import pytesseract
 from file_renamer import rename_file
 from extracters.extract_amounts_by_pattern import extract_invoice_amounts
+from utils.save_to_csv import save_to_csv
 import shutil
 import re
 
@@ -36,6 +37,16 @@ def process_single_pdf(pdf_path: Path):
 
         # Wyciągnięcie kwot
         amounts = extract_invoice_amounts(extracted_text)
+
+        # zapisanie danych do CSV
+        save_to_csv({
+            "firm_name": result["firm_name"],
+            "invoice_date": result["invoice_date"],
+            "invoice_number": result["invoice_number"],
+            "netto": amounts["netto"],
+            "vat": amounts["vat"],
+            "brutto": amounts["brutto"]
+        })
 
         # Przeniesienie pliku
         new_named_path = result["new_path"]
