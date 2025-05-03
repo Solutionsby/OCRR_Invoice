@@ -8,7 +8,7 @@ def extract_invoice_number(text: str) -> str:
     patterns = [
         r"(F\s*/\s*\d+/\d+/\d+)",
         r"(?:FS/\d+/\d+/\d+)",
-        r"(?:E-\d+/\d+/\d+)",
+        r"E-[A-Z]{1,5}[\d/]{4,}",
         r"(?:VAT\s*\d+/\d+/\d+)"
     ]
 

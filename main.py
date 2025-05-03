@@ -2,42 +2,59 @@ from pathlib import Path
 from pdf2image import convert_from_path
 import pytesseract
 from file_renamer import rename_file
+from extracters.extract_amounts_by_pattern import extract_invoice_amounts
 import shutil
+import re
 
-# Folder wejściowy i wyjściowy
+# Foldery
 SOURCE_DIR = Path("./faktury_surowe")
 DEST_DIR = Path("./faktury_przetworzone")
 DEST_DIR.mkdir(exist_ok=True)
 
-# OCR: konwersja PDF → obrazy
+# OCR: konwersja PDF na obrazy
 def pdf_to_images(pdf_path: Path):
     return convert_from_path(str(pdf_path))
 
-# OCR: tekst z obrazów
+# OCR: ekstrakcja tekstu z obrazów
 def extract_text_from_images(images):
     full_text = ""
     for i, image in enumerate(images):
         text = pytesseract.image_to_string(image, lang='pol')
-        print(f"\n ---- Tekst ze strony {i + 1} ----\n{text}")
+        print(f"\n---- Tekst ze strony {i + 1} ----\n{text}")
         full_text += text + "\n"
     return full_text.strip()
 
+# Przetwarzanie jednego pliku PDF
 def process_single_pdf(pdf_path: Path):
     try:
         print(f"\n📄 Przetwarzam plik: {pdf_path.name}")
         images = pdf_to_images(pdf_path)
         extracted_text = extract_text_from_images(images)
+
+        # Zmiana nazwy i wyciągnięcie podstawowych danych
         result = rename_file(pdf_path, extracted_text)
 
-        # Przenieś plik do folderu przetworzonych
-        target_path = DEST_DIR / result["new_path"].name
-        shutil.move(str(result["new_path"]), target_path)
+        # Wyciągnięcie kwot
+        amounts = extract_invoice_amounts(extracted_text)
 
-        print(f"✅ Gotowe: {target_path.name}")
+        # Przeniesienie pliku
+        new_named_path = result["new_path"]
+        target_path = DEST_DIR / new_named_path.name
+        shutil.move(str(new_named_path), target_path)
+
+        # Log danych
+        print(f"\n➡️ Firma:         {result['firm_name']}")
+        print(f"➡️ Nr faktury:    {result['invoice_number']}")
+        print(f"➡️ Data faktury:  {result['invoice_date']}")
+        print(f"➡️ Netto:         {amounts['netto']}")
+        print(f"➡️ VAT:           {amounts['vat']}")
+        print(f"➡️ Brutto:        {amounts['brutto']}")
+        print(f"✅ Zapisano jako: {target_path.name}")
 
     except Exception as e:
         print(f"❌ Błąd przy {pdf_path.name}: {e}")
 
+# Główna pętla
 def main():
     pdf_files = list(SOURCE_DIR.glob("*.pdf"))
     if not pdf_files:
