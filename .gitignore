@@ -8,3 +8,4 @@ __pycache__/
 faktury_surowe/
 faktury_przetworzone/
 dane/
+firm_profiles.json
