@@ -8,3 +8,6 @@ __pycache__/
 faktury_surowe/
 faktury_przetworzone/
 dane/
+faktury.csv 
+patterns.json  
+settings.json 

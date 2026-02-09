@@ -1,21 +1,23 @@
 import re
 
-def extract_invoice_number(text: str) -> str:
-    # Normalizujemy tekst, np. usuwamy podwójne spacje
-    text = re.sub(r"\s+", " ", text)
-
-    # Szukamy wzorców numerów faktur z typowymi prefiksami
+def extract_invoice_number(text: str, firm_name: str = None) -> str:
+    # Ujednolicona lista wzorców na podstawie Twoich przykładów
     patterns = [
-        r"(F\s*/\s*\d+/\d+/\d+)",
-        r"(?:FS/\d+/\d+/\d+)",
-        r"E-[A-Z]{1,5}[\d/]{4,}",
-        r"(?:VAT\s*\d+/\d+/\d+)"
+        r"FBADS-\d{3}-\d{9}",                               # FBADS
+        r"(?:FV|FS|E-FU|FA-MH|F|GRKS|PAYNOW)[/\w-]*[\d]{2,}[/\w-]*", # Prefiksy
+        r"202\d/[A-Z0-9/]+",                                # Od roku 202x/
+        r"\d{4,}/[A-Z0-9/]+",                               # Zaczynające się od cyfr
+        r"[\d]{3,}/[\w/]+(?:FVS|KPRE|BS)",                  # Z końcówkami
+        r"F\d{10,}",                                        # Bardzo długie F...
+        r"\w+/\d{2}/\d{4}"                                  # Standardowe daty/numery
     ]
+    
+    found_numbers = []
+    for p in patterns:
+        matches = re.findall(p, text, re.IGNORECASE)
+        for m in matches:
+            num = m.strip()
+            if len(num) > 4:
+                found_numbers.append(num)
 
-    for pattern in patterns:
-        match = re.search(pattern, text, flags=re.IGNORECASE)
-        if match:
-            # Usuwamy zbędne spacje w dopasowanym ciągu
-            return re.sub(r"\s+", "", match.group(0))
-
-    return "brak-nr"
+    return found_numbers[0] if found_numbers else "brak-nr"

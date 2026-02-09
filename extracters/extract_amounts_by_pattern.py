@@ -1,28 +1,35 @@
 import re
+import json
+from pathlib import Path
 
-def extract_invoice_amounts(text: str) -> dict:
-    lines = text.splitlines()
-    keywords = ['razem', 'suma', 'łącznie', 'do zapłaty']
+PATTERNS_FILE = Path("patterns.json")
 
-    for line in lines:
-        # Uproszczenie: usuń wielokrotne spacje i zamień przecinki na kropki
-        raw_line = line.lower()
-        if any(kw in raw_line for kw in keywords):
-            clean_line = raw_line.replace(",", ".")
-            clean_line = re.sub(r"\s+", "", clean_line)  # usunięcie spacji z liczb
+def extract_invoice_amounts(text: str, firm_name: str = None) -> dict:
+    # Czyścimy tekst do jednej linii dla łatwiejszego regexu
+    text_clean = re.sub(r"\s+", " ", text)
+    amounts = {"netto": None, "vat": None, "brutto": None}
+    
+    if not firm_name or not PATTERNS_FILE.exists():
+        return amounts
 
-            # Szukamy trzech floatów (np. 1169.70 269.03 1438.73)
-            match = re.findall(r"\d+\.\d{2}", clean_line)
-            if len(match) >= 3:
-                netto, vat, brutto = match[:3]
-                return {
-                    "netto": float(netto),
-                    "vat": float(vat),
-                    "brutto": float(brutto)
-                }
+    try:
+        with open(PATTERNS_FILE, "r", encoding="utf-8") as f:
+            all_patterns = json.load(f)
+            # Dopasowanie firmy (case-insensitive)
+            pattern = next((v for k, v in all_patterns.items() if k.lower().strip() == firm_name.lower().strip()), None)
+            
+            if pattern:
+                for key in ["netto", "vat", "brutto"]:
+                    anchor = pattern.get(f"{key}_anchor")
+                    if anchor == "0":
+                        amounts[key] = 0.0
+                    elif anchor:
+                        # Szukamy kwoty po kotwicy
+                        match = re.search(f"{re.escape(anchor)}[:\s]*([\d\s,.]+\d{{2}})", text_clean, re.IGNORECASE)
+                        if match:
+                            val = match.group(1).replace(" ", "").replace(",", ".")
+                            amounts[key] = float(val)
+    except:
+        pass
 
-    return {
-        "netto": None,
-        "vat": None,
-        "brutto": None
-    }
+    return amounts
