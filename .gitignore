@@ -11,3 +11,4 @@ dane/
 faktury.csv 
 patterns.json  
 settings.json 
+.env

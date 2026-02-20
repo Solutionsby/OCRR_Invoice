@@ -1,20 +1,22 @@
 import csv
 from pathlib import Path
 
-# Ścieżki do plików
+# Ścieżki do plików - Upewniamy się, że foldery istnieją
 OLD_DB_CSV = Path("dane/baza_glowna.csv")    
 PAYMENTS_CSV = Path("dane/do_zaplaty.csv")    
 
 def save_to_csv(data):
     """
-    Główna funkcja. 'data' musi być słownikiem przekazanym z main.py
+    Główna funkcja rozdzielająca dane do dwóch baz.
     """
-    # Upewniamy się, że data jest słownikiem
+    # Upewniamy się, że folder 'dane' istnieje
+    OLD_DB_CSV.parent.mkdir(parents=True, exist_ok=True)
+
     if not isinstance(data, dict):
         print(f"❌ BŁĄD: Oczekiwano słownika, otrzymano {type(data)}")
         return
 
-    # 1. Zapis do starej bazy (bez daty płatności)
+    # 1. Zapis do głównej bazy historycznej
     _save_to_old_database(data)
     
     # 2. Zapis do raportu płatności (tylko jeśli jest data zapłaty)
@@ -23,29 +25,28 @@ def save_to_csv(data):
         _save_to_payment_report(data)
 
 def _save_to_old_database(data):
-    # Nagłówki starej bazy
+    # Nagłówki starej bazy (zgodnie z Twoim wzorem)
     headers = ["firm_name", "dzial", "invoice_date", "invoice_number", "netto", "vat", "brutto"]
     
-    # Tworzymy czystą kopię danych tylko z tymi polami, które zna stara baza
     row_to_save = {k: data.get(k, "") for k in headers}
-    
     file_exists = OLD_DB_CSV.exists()
     
     try:
-        with open(OLD_DB_CSV, "a", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=headers)
-            # Jeśli plik jest nowy, dopisz nagłówki
+        # Używamy utf-8-sig, aby polskie znaki (ą, ć, ł) otwierały się poprawnie w Excelu
+        # Dodajemy delimiter=';', jeśli Twój Excel tego wymaga (standard w PL)
+        with open(OLD_DB_CSV, "a", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=headers, delimiter=';')
             if not file_exists or OLD_DB_CSV.stat().st_size == 0:
                 writer.writeheader()
             writer.writerow(row_to_save)
+        print(f"💾 Dopisano do bazy głównej: {data.get('firm_name')}")
     except Exception as e:
         print(f"❌ Błąd zapisu do {OLD_DB_CSV}: {e}")
 
 def _save_to_payment_report(data):
-    # Nagłówki nowej bazy płatności
+    # Nagłówki raportu płatności (tylko 4 kluczowe kolumny)
     headers = ["firm_name", "invoice_number", "payment_date", "brutto"]
     
-    # Wybieramy tylko te 4 kolumny
     row_to_save = {
         "firm_name": data.get("firm_name", ""),
         "invoice_number": data.get("invoice_number", ""),
@@ -56,11 +57,11 @@ def _save_to_payment_report(data):
     file_exists = PAYMENTS_CSV.exists()
     
     try:
-        with open(PAYMENTS_CSV, "a", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=headers)
-            # Jeśli plik jest nowy, dopisz nagłówki
+        with open(PAYMENTS_CSV, "a", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=headers, delimiter=';')
             if not file_exists or PAYMENTS_CSV.stat().st_size == 0:
                 writer.writeheader()
             writer.writerow(row_to_save)
+        print(f"💰 Dodano do listy płatności: {data.get('payment_date')}")
     except Exception as e:
         print(f"❌ Błąd zapisu do {PAYMENTS_CSV}: {e}")

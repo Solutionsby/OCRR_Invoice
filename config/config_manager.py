@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+
 SETTINGS_FILE = Path("settings.json")
 PATTERNS_FILE = Path("patterns.json")
 

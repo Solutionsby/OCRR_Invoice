@@ -1,0 +1,611 @@
+{
+    "dostepne_dzialy": [
+        "Automaty",
+        "Gastronomia",
+        "Hotel",
+        "Kormoran",
+        "RDS",
+        "Wspólne",
+        "Biuro",
+        "Duba",
+        "Konrad"
+    ],
+    "historia_firm": {
+        "Farutex Sp. z o.o.": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "MIX",
+                "Produkty"
+            ]
+        },
+        "CSG SA": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Czesci"
+            ]
+        },
+        "AUTOMAT SPEC Sp. z o.o.": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "AKA Spzoo": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "FHU MARMAX Marcin Zabrocki": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "HRS GmbH": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "OTA"
+            ]
+        },
+        "Grażyna Wolańska": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Strony WWW"
+            ]
+        },
+        "WAL-TOM Tomasz Przybyłowicz": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "PPHU KRISK SZEWCZYK BOGDAN": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Materiały promocyjne"
+            ]
+        },
+        "GRUPA IGUANA Sp. z o.o.": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "Karol Nowak": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "AMAREL": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Ryby"
+            ]
+        },
+        "TRIADA AUGUSTO POMORZE": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "Fortum Marketing and Sales Polska SA": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Media"
+            ]
+        },
+        "Biedronka": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "HIGIENIKA SC": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "DHL eCommerce Poland Sp. z o.o.": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Kurier"
+            ]
+        },
+        "PUH GASTRO-TECH": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Naprawy",
+                "Serwis"
+            ]
+        },
+        "Vectra SA": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Czynsze"
+            ]
+        },
+        "KLUB TENISOWY ARKA": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Czynsze"
+            ]
+        },
+        "ROHLIG SUUS Logistics SA": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Kurier"
+            ]
+        },
+        "OBI": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Naprawy"
+            ]
+        },
+        "MOBIMEX": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "V-RESTO Sp. z o.o.": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "DUET KWIDZYN": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Czesci"
+            ]
+        },
+        "BsCaffe Grzegorz Bieńko": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Czesci"
+            ]
+        },
+        "sportpolandcom Sp. z o.o.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Marketing"
+            ]
+        },
+        "MARMAX": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "Booking.com B.V.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "OTA"
+            ]
+        },
+        "RAKO-TRADE": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Pakowanie"
+            ]
+        },
+        "Agencja Reklamowa Media Design": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Materiały Marketingowe"
+            ]
+        },
+        "Moduł": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Materiały Marketingowe"
+            ]
+        },
+        "Benefit Systems S.A.": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Kafeteria"
+            ]
+        },
+        "Dzwignia": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Remonty"
+            ]
+        },
+        "Energa-Operator SA": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Media"
+            ]
+        },
+        "MediaExpert": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Urzadzenia"
+            ]
+        },
+        "Ag FOODS": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Czesci",
+                "Produkty"
+            ]
+        },
+        "FIT POLAND Sp. z o.o.": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Czynsze"
+            ]
+        },
+        "ACTION": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Czesci"
+            ]
+        },
+        "AMERICAN EXPRESS": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Prowizje"
+            ]
+        },
+        "Allegro Sp. z o.o.": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Portale Aukcyjne"
+            ]
+        },
+        "KOZAK Lidia Kozak": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Urzadzenia"
+            ]
+        },
+        "LIDER Spz oo": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "SPEC KABLE": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Czesci",
+                "Cześci"
+            ]
+        },
+        "Polska Sieć Motoryzacyjna SPECPART Sp. z o.o.": {
+            "dzial": "Wspólne",
+            "kategorie": []
+        },
+        "Alsendo": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Kurier"
+            ]
+        },
+        "NET-CARGO Sp. z o.o.": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Opłaty Portowe"
+            ]
+        },
+        "mElements S.A.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Prowizje"
+            ]
+        },
+        "FIRMA ROBERT RYBICKI": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Badania samochodów"
+            ]
+        },
+        "IN MONTIBUS": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Pranie"
+            ]
+        },
+        "PayPro Spółka Akcyjna": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Prowizje"
+            ]
+        },
+        "Przedsiębiorstwo Handlowe  JABO  Jarosław Klonowski": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Ciuchy"
+            ]
+        },
+        "SHOPER SPÓŁKA AKCYJNA": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Sklep internetowy"
+            ]
+        },
+        "Miotk": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "Ambro EXPRESS": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Kurier"
+            ]
+        },
+        "AVT SPV": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Czesci"
+            ]
+        },
+        "Expedia Group": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "OTA"
+            ]
+        },
+        "Westtrade Alkohole Sp. Z O.O.": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Alkohol"
+            ]
+        },
+        "iczysto": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "PPG Deco Polska Sp. z o.o.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Remonty"
+            ]
+        },
+        "Grupa OLX Sp. z o.o.": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Portale aukcyjne"
+            ]
+        },
+        "WESTTRADE ALKOHOLE": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Alkohole"
+            ]
+        },
+        "KARDA": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "Takwiele Sp z o o": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Czesci"
+            ]
+        },
+        "SAYMON\" S.C.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Przeglądy"
+            ]
+        },
+        "Energa-Operator S.A.": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Czynsz"
+            ]
+        },
+        "Rossmann": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "JackTronic": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Czesci"
+            ]
+        },
+        "AQUA-Sopot Sp. z o.o.": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Media"
+            ]
+        },
+        "Protektor": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Samochody"
+            ]
+        },
+        "Orange": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Media"
+            ]
+        },
+        "Televend Paweł Ożga": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Nyax"
+            ]
+        },
+        "Czas na Rolety": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Naprawy"
+            ]
+        },
+        "Axpo": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Media"
+            ]
+        },
+        "KACZMARSKI GROUP": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Opłaty"
+            ]
+        },
+        "Decathlon": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Materiały marketingowe"
+            ]
+        },
+        "BIZPROJEKT Sp. z o.o.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Naprawy"
+            ]
+        },
+        "GDANSKDIS Sp. z o.o.": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Leroy-Merlin": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Naprawy"
+            ]
+        },
+        "Autopay Spółka Akcyjna": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Prowizje"
+            ]
+        },
+        "V-RESTO Sp. z o.o. Faktura VAT": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "Szallas Group Zrt": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "OTA"
+            ]
+        },
+        "HFTRADECO": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Części"
+            ]
+        },
+        "Ketrina Sp. z o.o": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Częsci"
+            ]
+        },
+        "Agroma": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Ogrod"
+            ]
+        },
+        "Smart Sp. z o.o.": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Opakowanie"
+            ]
+        },
+        "Elavon": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Prowizje"
+            ]
+        },
+        "TECHNICA GROUP": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Wyposazenie"
+            ]
+        },
+        "Ofix Lewandowski sp. z o.o.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Wyposazenie"
+            ]
+        },
+        "SANTE sp. z o.o.": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "IRONPACK": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Opakowania"
+            ]
+        },
+        "PZU Zdrowie SA": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Badania"
+            ]
+        },
+        "TERG S.A.": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Telefon"
+            ]
+        },
+        "Poczta Polska Usługi Cyfrowe Sp. z o.o.": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Poczta"
+            ]
+        },
+        "Energotel": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Ubezpieczenie"
+            ]
+        },
+        "EURO-NET Sp. z o.o.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "PRESTIGE PRO SPÓŁKA Z OGRANICZONĄ": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Wyposazenie"
+            ]
+        },
+        "Orange Polska S.A.": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Media"
+            ]
+        },
+        "TECHNICA": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Wyposazenie"
+            ]
+        }
+    }
+}
