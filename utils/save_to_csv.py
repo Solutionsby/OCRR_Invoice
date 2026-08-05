@@ -26,7 +26,7 @@ def save_to_csv(data):
 
 def _save_to_old_database(data):
     # Nagłówki starej bazy (zgodnie z Twoim wzorem)
-    headers = ["firm_name", "dzial", "invoice_date", "invoice_number", "netto", "vat", "brutto"]
+    headers = ["firm_name", "invoice_date", "invoice_number", "netto", "vat", "brutto"]
     
     row_to_save = {k: data.get(k, "") for k in headers}
     file_exists = OLD_DB_CSV.exists()

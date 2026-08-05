@@ -27,4 +27,17 @@ def extract_payment_date(text):
                 if match:
                     return try_parse_date(match.group(0))
 
+    # KSeF: w niektórych rozjechanych tabelach nawet słowa "Termin" i
+    # "płatności" trafiają na osobne linie (kolumny tabeli wchodzą pomiędzy),
+    # a data stoi zaraz po samym słowie "płatności".
+    for i, line in enumerate(lines):
+        if line.strip().lower() == "termin":
+            for j in range(i + 1, min(i + 15, len(lines))):
+                if lines[j].strip().lower() == "płatności":
+                    for next_line in lines[j + 1:j + 4]:
+                        match = re.search(DATE_RE, next_line)
+                        if match:
+                            return try_parse_date(match.group(0))
+                    break
+
     return "brak"

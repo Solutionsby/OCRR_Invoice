@@ -1,14 +1,33 @@
 from utils.date_utils import try_parse_date
 from extracters.extract_payment_info import is_paid
 
-def present_proposal(firm, dept, num, date, pay_date, payment_status, payment_form, brutto):
+def ask_payment_status_decision(firm, num, date, pay_date, payment_form, brutto):
+    """
+    Wywoływane tylko gdy KSeF nie podał "Informacja o płatności" i nie dało
+    się tego wywnioskować (forma płatności / porównanie dat) — operator musi
+    jednoznacznie zdecydować, zamiast żeby program cicho przyjął domyślny stan.
+    Pokazujemy te same dane co w głównej propozycji, żeby decyzja nie
+    wymagała samego zaglądania do otwartego PDF-u.
+    """
+    print(f"\n❓ Brak informacji o płatności na fakturze — nie da się jej jednoznacznie wywnioskować.")
+    print(f"   🏢 Kontrahent: {firm}")
+    print(f"   🔢 Numer:      {num}")
+    print(f"   📅 Data FV:    {date}")
+    print(f"   ⏳ Termin:     {pay_date}")
+    print(f"   💳 Forma:      {payment_form}")
+    print(f"   💰 Brutto:     {brutto}")
+    answer = input("   Czy faktura jest opłacona? [t/N]: ").strip().lower()
+    if answer in ("t", "tak"):
+        return "Zapłacono (wskazane ręcznie)"
+    return "Brak zapłaty (wskazane ręcznie)"
+
+def present_proposal(firm, num, date, pay_date, payment_status, payment_form, brutto):
     """
     Wyświetla użytkownikowi dane odczytane przez OCR i pobiera decyzję.
     """
     paid_icon = "✅" if is_paid(payment_status) else "❌"
     print("\n" + "-"*40)
     print(f"🏢 KONTRAHENT: {firm}")
-    print(f"📁 DZIAŁ:      {dept}")
     print(f"🔢 NUMER FV:   {num}")
     print(f"📅 DATA FV:    {date}")
     print(f"⏳ TERMIN:     {pay_date}")
@@ -16,21 +35,20 @@ def present_proposal(firm, dept, num, date, pay_date, payment_status, payment_fo
     print(f"💳 FORMA:      {payment_form}")
     print(f"💰 BRUTTO:     {brutto}")
     print("-"*40)
-    
-    print("\n[T]ak | [N]ie (korekta) | [K]olejkuj do zapłaty (bez działu) | [P]omiń")
+
+    print("\n[T]ak | [N]ie (korekta) | [K]olejkuj do zapłaty | [P]omiń")
     choice = input("👉 Wybór: ").strip().lower()
     return choice
 
-def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, payment_status, payment_form, brutto, is_quick_mode=False, kb_data=None):
+def get_manual_corrections(proposed_firm, num, date, pay_date, payment_status, payment_form, brutto, is_quick_mode=False, kb_data=None):
     """
-    Tryb pełnej korekty ręcznej z obsługą Bazy Wiedzy (Działy i Kategorie).
+    Tryb pełnej korekty ręcznej z obsługą Bazy Wiedzy (Kategorie).
     """
-    fields = ["firm", "dept", "category", "num", "date", "pay_date", "payment_status", "payment_form", "brutto"]
+    fields = ["firm", "category", "num", "date", "pay_date", "payment_status", "payment_form", "brutto"]
 
     # Inicjalizacja danych
     data = {
         "firm": proposed_firm,
-        "dept": "TYLKO PŁATNOŚĆ" if is_quick_mode else proposed_dept,
         "category": "",
         "num": num,
         "date": date,
@@ -42,22 +60,21 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, pa
 
     current_step = 0
     print("\n" + "="*60)
-    print(f"🚀 TRYB KOREKTY {'BŁYSKAWICZNEJ (BEZ DZIAŁU)' if is_quick_mode else 'RĘCZNEJ'}")
+    print(f"🚀 TRYB KOREKTY {'BŁYSKAWICZNEJ' if is_quick_mode else 'RĘCZNEJ'}")
     print("   [Enter] - akceptuj | [b] - cofnij | [p] - pomiń")
     print("="*60)
 
     while current_step < len(fields):
         field = fields[current_step]
-        
-        # --- LOGIKA TRYBU K: Pominięcie Działu i Kategorii ---
-        if is_quick_mode and field in ["dept", "category"]:
+
+        # --- LOGIKA TRYBU K: Pominięcie Kategorii ---
+        if is_quick_mode and field == "category":
             current_step += 1
             continue
 
         current_val = data[field]
         labels = {
             "firm": "Firma",
-            "dept": "Dział",
             "category": "Kategoria",
             "num": "Numer FV",
             "date": "Data FV",
@@ -67,21 +84,8 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, pa
             "brutto": "Kwota brutto",
         }
 
-        # --- SPECJALNA OBSŁUGA DZIAŁU (Lista numerowana) ---
-        if field == "dept" and kb_data:
-            available_depts = kb_data.get("dostepne_dzialy", [])
-            print(f"\n👉 Wybierz Dział (wpisz numer lub nową nazwę) [Obecny: {current_val}]:")
-            for i, d in enumerate(available_depts, 1):
-                print(f"   [{i}] {d}")
-            user_input = input("   Wybór: ").strip()
-
-            if user_input.isdigit() and 1 <= int(user_input) <= len(available_depts):
-                data[field] = available_depts[int(user_input)-1]
-            elif user_input != "":
-                data[field] = user_input
-        
         # --- SPECJALNA OBSŁUGA KATEGORII (Podpowiedzi) ---
-        elif field == "category" and kb_data:
+        if field == "category" and kb_data:
             firm_info = kb_data.get("historia_firm", {}).get(data["firm"], {})
             known_cats = firm_info.get("kategorie", [])
             if known_cats:
@@ -95,14 +99,14 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, pa
 
         # 1. Obsługa pominięcia
         if user_input.lower() == 'p':
-            return "SKIP", None, None, None, None, None, None, None, None
+            return "SKIP", None, None, None, None, None, None, None
 
         # 2. Obsługa cofania
         if user_input.lower() == 'b':
             if current_step > 0:
                 # Przeskocz z powrotem pola ukryte w trybie K
                 if is_quick_mode:
-                    while current_step > 0 and fields[current_step-1] in ["dept", "category"]:
+                    while current_step > 0 and fields[current_step-1] == "category":
                         current_step -= 1
                 current_step -= 1
                 print("   << powrót")
@@ -111,8 +115,8 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, pa
                 print("   ℹ️ Jesteś na początku listy.")
                 continue
 
-        # 3. Przetwarzanie zmian (tylko jeśli nieobsłużone wyżej w dept/category)
-        if user_input != "" and field not in ["dept", "category"]:
+        # 3. Przetwarzanie zmian (tylko jeśli nieobsłużone wyżej w category)
+        if user_input != "" and field != "category":
             if field in ["date", "pay_date"]:
                 unified = try_parse_date(user_input)
                 data[field] = unified
@@ -128,4 +132,4 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, pa
 
         current_step += 1
 
-    return (data["firm"], data["dept"], data["num"], data["date"], data["pay_date"], data["category"], data["payment_status"], data["payment_form"], data["brutto"])
+    return (data["firm"], data["num"], data["date"], data["pay_date"], data["category"], data["payment_status"], data["payment_form"], data["brutto"])

@@ -35,10 +35,11 @@ def _archive_paid_invoice(pdf_path: Path, firm_name: str) -> Path:
     shutil.move(str(pdf_path), target_path)
     return target_path
 
-def send_payment_report():
-    # 1. Pobranie danych z bazy (bez zmian)
-    upcoming_payments, total_sum = pm.load_upcoming_payments_from_sql()
-    
+def send_payment_report(ignore_date_window: bool = False):
+    # 1. Pobranie danych z bazy
+    upcoming_payments, total_sum = pm.load_upcoming_payments_from_sql(ignore_date_window=ignore_date_window)
+
+
     if not upcoming_payments:
         print("\nℹ️ Brak faktur do zapłaty.")
         return

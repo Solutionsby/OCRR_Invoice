@@ -6,6 +6,14 @@ import re
 LABEL_RE = re.compile(r"numer\s+faktury\s*:?\s*$", re.IGNORECASE)
 STOP_PREFIXES = ("faktura podstawowa", "faktura korygująca", "numer ksef")
 
+def _fix_slash_misread(number: str) -> str:
+    """
+    W numerach faktur w KSeF Tesseract regularnie myli znak "/" z literą "I"
+    (styl fontu w tym konkretnym polu wizualizacji) — np. "43ISMNI2026/08"
+    to w rzeczywistości "43/SMN/2026/08". Zamieniamy z powrotem.
+    """
+    return number.replace("I", "/")
+
 def extract_invoice_number(text: str, firm_name: str = None) -> str:
     lines = text.splitlines()
 
@@ -17,7 +25,7 @@ def extract_invoice_number(text: str, firm_name: str = None) -> str:
                     continue
                 if candidate.lower().startswith(STOP_PREFIXES):
                     break
-                return candidate
+                return _fix_slash_misread(candidate)
 
     # Fallback: dokumenty spoza KSeF / nietypowe layouty bez etykiety
     patterns = [
@@ -38,4 +46,4 @@ def extract_invoice_number(text: str, firm_name: str = None) -> str:
             if len(num) > 4:
                 found_numbers.append(num)
 
-    return found_numbers[0] if found_numbers else "brak-nr"
+    return _fix_slash_misread(found_numbers[0]) if found_numbers else "brak-nr"

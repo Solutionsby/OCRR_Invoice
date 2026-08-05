@@ -18,7 +18,10 @@ from extracters.extract_firm_name import extract_firm_name
 from extracters.extract_invoice_number import extract_invoice_number
 from extracters.extract_invoice_date import extract_invoice_date
 from extracters.extract_payment_date import extract_payment_date
-from extracters.extract_payment_info import extract_payment_status, extract_payment_form, is_paid
+from extracters.extract_payment_info import (
+    extract_payment_status, extract_payment_form, is_paid,
+    status_is_missing, assume_unpaid_via_transfer_heuristic, assume_paid_via_cod_heuristic,
+)
 from extracters.extract_gross_amount import extract_gross_amount
 from utils import database_manager as db
 
@@ -60,7 +63,7 @@ def process_file(pdf_path: Path):
         # 2. Pobieranie danych wstępnych
         patterns = cfg.load_patterns()
         scanned_firm = extract_firm_name(text, left_column_text=left_column_text).strip()
-        proposed_firm, proposed_dept = cfg.get_firm_data(scanned_firm, patterns)
+        proposed_firm = cfg.get_firm_data(scanned_firm, patterns)
         
         date = extract_invoice_date(text)
         pay_date = extract_payment_date(text)
@@ -69,15 +72,31 @@ def process_file(pdf_path: Path):
         payment_form = extract_payment_form(text)
         brutto = extract_gross_amount(text)
 
+        # 2b. Część layoutów KSeF nie pokazuje "Informacja o płatności" wcale.
+        # Pobranie = zapłata przy dostawie, więc zakładamy opłaconą. Przelew
+        # z terminem późniejszym niż data wystawienia = jeszcze nieopłacona.
+        # W innych niejednoznacznych przypadkach pytamy wprost operatora,
+        # zamiast cicho przyjmować domyślną wartość.
+        if status_is_missing(payment_status):
+            if assume_paid_via_cod_heuristic(payment_form):
+                payment_status = "Zapłacono (pobranie)"
+            elif assume_unpaid_via_transfer_heuristic(payment_form, date, pay_date):
+                payment_status = "Brak zapłaty (przelew, termin po dacie wystawienia)"
+            else:
+                # Niejednoznaczne — otwieramy PDF, żeby operator mógł sprawdzić fakturę przed decyzją
+                sys_utils.open_pdf(pdf_path)
+                payment_status = ui.ask_payment_status_decision(proposed_firm, num, date, pay_date, payment_form, brutto)
+                sys_utils.close_pdf()
+
         # 3. Interakcja z użytkownikiem
-        confirm = ui.present_proposal(proposed_firm, proposed_dept, num, date, pay_date, payment_status, payment_form, brutto)
+        confirm = ui.present_proposal(proposed_firm, num, date, pay_date, payment_status, payment_form, brutto)
 
         if confirm == 'p':
             print(f"⏭️ Pominięto fakturę: {pdf_path.name}")
             return
 
         # Wartości domyślne
-        final_firm, final_dept, final_num = proposed_firm, proposed_dept, num
+        final_firm, final_num = proposed_firm, num
         final_date, final_pay_date = date, pay_date
         final_status, final_form, final_brutto = payment_status, payment_form, brutto
         final_cat = ""  # Domyślnie pusta kategoria
@@ -88,9 +107,9 @@ def process_file(pdf_path: Path):
             # --- NOWOŚĆ: Wczytujemy bazę wiedzy przed korektą ---
             kb_data = km.load_kb()
 
-            # Odbieramy 9 wartości (dodana kategoria + status/forma/kwota płatności na końcu)
+            # Odbieramy 8 wartości (dodana kategoria + status/forma/kwota płatności na końcu)
             corrections = ui.get_manual_corrections(
-                proposed_firm, proposed_dept, num, date, pay_date, payment_status, payment_form, brutto,
+                proposed_firm, num, date, pay_date, payment_status, payment_form, brutto,
                 is_quick_mode=(confirm == 'k'),
                 kb_data=kb_data
             )
@@ -100,20 +119,20 @@ def process_file(pdf_path: Path):
                 sys_utils.close_pdf()
                 return
 
-            # Rozpakowanie 9 elementów korekty
-            final_firm, final_dept, final_num, final_date, final_pay_date, final_cat, final_status, final_form, final_brutto = corrections
+            # Rozpakowanie 8 elementów korekty
+            final_firm, final_num, final_date, final_pay_date, final_cat, final_status, final_form, final_brutto = corrections
 
             # --- NOWOŚĆ: Aktualizacja bazy wiedzy (nauka systemu) ---
             if confirm != 'k':
-                km.update_firm_knowledge(final_firm, final_dept, final_cat)
+                km.update_firm_knowledge(final_firm, final_cat)
                 # Opcjonalnie: stary config_manager też może zostać zaktualizowany dla kompatybilności
-                cfg.update_knowledge_base(scanned_firm, final_firm, final_dept)
+                cfg.update_knowledge_base(scanned_firm, final_firm)
 
             sys_utils.close_pdf()
         else:
             # Tryb "Tak" - również uczymy system (nawet jeśli kategoria jest pusta)
-            km.update_firm_knowledge(final_firm, final_dept, final_cat)
-            cfg.update_knowledge_base(scanned_firm, final_firm, final_dept)
+            km.update_firm_knowledge(final_firm, final_cat)
+            cfg.update_knowledge_base(scanned_firm, final_firm)
 
         # 4. Nazewnictwo
         result = rename_file(pdf_path, text, manual_num=final_num, manual_firm=final_firm, manual_date=final_date)
@@ -129,7 +148,6 @@ def process_file(pdf_path: Path):
             "payment_form": final_form,
             "oplacona": is_paid(final_status),
             "brutto": final_brutto,
-            "dzial": final_dept,
             "kategoria": final_cat,
             "file_name": new_pdf_name
         }

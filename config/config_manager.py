@@ -23,29 +23,19 @@ def save_patterns(patterns):
         json.dump(patterns, f, indent=4, ensure_ascii=False)
 
 def get_firm_data(raw_firm, patterns):
-    """Zwraca dane o firmie. Jeśli brak w bazie, bierze default_dept z settings."""
-    # 1. Sprawdź Aliasy
+    """Zwraca kanoniczną nazwę firmy na podstawie zapisanych aliasów."""
     for canonical_name, data in patterns.items():
         if raw_firm in data.get("aliases", []):
-            return canonical_name, data.get("dzial", "")
+            return canonical_name
+    return raw_firm
 
-    # 2. Sprawdź czy firma już jest w patterns bezpośrednio
-    if raw_firm in patterns:
-        return raw_firm, patterns[raw_firm].get("dzial", "")
-
-    # 3. Jeśli firma jest zupełnie nowa, pobierz default_dept z settings.json
-    settings = load_settings()
-    fallback = settings.get("default_dept", "Do przypisania")
-    return raw_firm, fallback
-
-def update_knowledge_base(scanned_firm, final_firm, final_dept):
-    """Dodaje nową wiedzę o firmie, jej dziale i aliasie sczytanym przez OCR."""
+def update_knowledge_base(scanned_firm, final_firm):
+    """Dodaje nowy alias firmy sczytany przez OCR do patterns.json."""
     patterns = load_patterns()
     if final_firm not in patterns:
-        patterns[final_firm] = {"dzial": final_dept, "aliases": []}
-    
+        patterns[final_firm] = {"aliases": []}
+
     if scanned_firm != final_firm and scanned_firm not in patterns[final_firm]["aliases"]:
         patterns[final_firm]["aliases"].append(scanned_firm)
-    
-    patterns[final_firm]["dzial"] = final_dept
+
     save_patterns(patterns)

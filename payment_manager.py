@@ -16,34 +16,45 @@ def get_db_connection():
     )
     return pyodbc.connect(conn_str)
 
-def load_upcoming_payments_from_sql():
+def load_upcoming_payments_from_sql(ignore_date_window: bool = False):
     """
-    Pobiera faktury do opłacenia: niezapłacone, z terminem w oknie +/-7 dni
-    od dziś. Dolna granica (7 dni wstecz) chroni przed pominięciem czegoś, co
-    dopiero co trafiło do bazy z terminem tuż w przeszłości — nie łapie już
-    natomiast starego zaległego backlogu sprzed miesięcy.
+    Pobiera faktury do opłacenia: niezapłacone. Domyślnie ograniczone do okna
+    +/-7 dni od dziś (dolna granica chroni przed pominięciem czegoś, co
+    dopiero co trafiło do bazy z terminem tuż w przeszłości, górna to zwykłe
+    "najbliższy tydzień"). ignore_date_window=True wyłącza to ograniczenie
+    i zwraca WSZYSTKIE niezapłacone faktury bez względu na termin.
     """
     upcoming = []
     total_sum = 0
-    today = datetime.now().date()
-    lower_bound = today - timedelta(days=7)
-    upper_bound = today + timedelta(days=7)
 
-    query = """
-        SELECT Id, Kontrahent, NumerFaktury, DataPlatnosci, KwotaBrutto, Dzial, NazwaPliku
-        FROM FAKTURY_DO_ZAPLATY
-        WHERE CzyZaplacona = 0
-        AND DataPlatnosci >= ?
-        AND DataPlatnosci <= ?
-        ORDER BY DataPlatnosci ASC
-    """
+    if ignore_date_window:
+        query = """
+            SELECT Id, Kontrahent, NumerFaktury, DataPlatnosci, KwotaBrutto, NazwaPliku
+            FROM FAKTURY_DO_ZAPLATY
+            WHERE CzyZaplacona = 0
+            ORDER BY DataPlatnosci ASC
+        """
+        params = ()
+    else:
+        today = datetime.now().date()
+        lower_bound = today - timedelta(days=7)
+        upper_bound = today + timedelta(days=7)
+        query = """
+            SELECT Id, Kontrahent, NumerFaktury, DataPlatnosci, KwotaBrutto, NazwaPliku
+            FROM FAKTURY_DO_ZAPLATY
+            WHERE CzyZaplacona = 0
+            AND DataPlatnosci >= ?
+            AND DataPlatnosci <= ?
+            ORDER BY DataPlatnosci ASC
+        """
+        params = (lower_bound, upper_bound)
 
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(query, (lower_bound, upper_bound))
-        
+        cursor.execute(query, params)
+
         rows = cursor.fetchall()
         for row in rows:
             # Mapowanie kolumn z zapytania
@@ -53,8 +64,7 @@ def load_upcoming_payments_from_sql():
                 'invoice_number': row[2],
                 'payment_date': row[3].strftime("%Y-%m-%d") if row[3] else "brak",
                 'brutto': float(row[4]) if row[4] else 0.0,
-                'dzial': row[5],
-                'file_name': row[6]  # Pełna nazwa pliku PDF z bazy
+                'file_name': row[5]  # Pełna ścieżka do pliku PDF z bazy
             }
             upcoming.append(item)
             total_sum += item['brutto']
