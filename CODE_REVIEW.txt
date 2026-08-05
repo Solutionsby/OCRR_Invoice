@@ -1,0 +1,142 @@
+================================================================================
+CODE REVIEW — OCRR_Invoice (Python, OCR faktur, SQL, e-mail)
+Data przeglądu: 2026-04-20
+Zakres: cały repozytorium (main, utils, config, extracters, mail, płatności)
+================================================================================
+
+1. STRENGTHS (MOCNE STRONY)
+--------------------------------------------------------------------------------
+• Czytelny podział: main (orkiestracja), extracters (logika OCR), utils (UI, pliki,
+  baza, data), config (ustawienia).
+• Parametryzacja wrażliwych danych w zapytaniach SQL (placeholdery ?) — dobra
+  praktyka przeciwko SQL injection.
+• Obsługa ścieżek przez pathlib oraz rozdzielenie Windows/macOS w kluczowych miejscach.
+• Baza wiedzy JSON (działy, kategorie) spójnie spięta z UI korekty i aktualizacją
+  po akceptacji faktury.
+• payment_manager filtruje zapłacone faktury i sortuje po terminie — sensowny model
+  raportu płatności.
+
+
+2. BUGS / LOGIC ERRORS (BŁĘDY I NIESPÓJNOŚCI)
+--------------------------------------------------------------------------------
+2.1 main.py — warunki na wynik funkcji zapisu do SQL
+    Funkcje db.save_to_faktury_kosztowe() oraz db.save_to_faktury_do_zaplaty() w
+    utils/database_manager.py nie zwracają jawnej wartości (implicit None).
+    Wyrażenia:
+      if db.save_to_faktury_kosztowe(final_data):
+      if db.save_to_faktury_do_zaplaty(final_data):
+    są zawsze fałszywe przy udanym zapisie (None jest falsy). Komunikaty typu
+    „Zapisano w tabeli…” z main.py praktycznie nigdy się nie wykonają; sukces
+    widać tylko z printów wewnątrz database_manager.
+    Propozycja: albo zwracać True/False z funkcji zapisu, albo usunąć zbędne if-y
+    w main.py i polegać na jednym miejscu logowania wyniku.
+
+2.2 Duplikacja i rozjazd konfiguracji połączenia z bazą
+    payment_manager.get_db_connection() używa DB_DRIVER z .env i
+    TrustServerCertificate=yes.
+    utils/database_manager.get_db_connection() ma na sztywno
+    DRIVER={ODBC Driver 17 for SQL Server} bez TrustServerCertificate.
+    Skutek: inne środowiska (inny driver, certyfikat) mogą działać w mailerze,
+    a nie w mainie (lub odwrotnie). Utrudnia to wdrożenie i debugowanie.
+    Propozycja: jeden moduł/funkcja budująca connection string z .env.
+
+2.3 mail_sender.py — pusta obsługa wyjątków przy załącznikach
+    except: pass przy odczycie/dodawaniu PDF ukrywa błędy (np. brak uprawnień,
+    uszkodzony plik). Trudno zdiagnozować czemu klient nie dostał załącznika.
+    Propozycja: logować wyjątek (logging.exception) lub przynajmniej komunikat.
+
+2.4 mail_sender.py — oznaczanie jako wysłane vs. załączniki
+    added_ids.append(p['id']) jest wykonywane dla każdej pozycji z listy
+    niezależnie od tego, czy PDF został znaleziony i dołączony. Po udanym SMTP
+    wszystkie te ID trafiają do mark_as_sent. Jeśli celem jest „wysłano = faktycznie
+    dołączono PDF”, logika jest zbyt szeroka; jeśli celem jest „raport wysłany”,
+    warto to udokumentować lub rozdzielić statusy.
+
+2.5 utils/knowledge_manager.py — funkcja get_suggestions
+    Zwraca data.get("dzial", []), podczas gdy w JSON pole „dzial” jest stringiem.
+    Domyślna wartość [] sugeruje listę; przy nieużywanym kluczu zwróciłoby się [].
+    Funkcja nie jest nigdzie wywoływana (martwy kod) — ryzyko przyszłego błędu
+    przy pierwszym użyciu (np. iteracja po stringu zamiast po liście działów).
+    Propozycja: usunąć albo poprawić kontrakt (zawsze lista lub zawsze string).
+
+2.6 config/system_utils.py — close_pdf()
+    killall Preview zamyka całą aplikację Podgląd na macOS, nie tylko otwarty PDF
+    projektu. Może usuwać inne dokumenty użytkownika.
+    Propozycja: dokumentacja ostrzeżenia lub inna strategia (bez zabijania procesu).
+
+2.7 Literówka w nazwie kolumny SQL (jeśli baza była tworzona „poprawnie”)
+    W save_to_faktury_kosztowe jest „Data_Wystwawienia” (podwójne „w”).
+    Jeśli w SQL Server kolumna nazywa się standardowo „Data_Wystawienia”,
+    INSERT się wyłoży. Wymaga weryfikacji ze schematem bazy (może u Was celowo
+    taka nazwa).
+
+
+3. MAINTAINABILITY (UTRZYMYWALNOŚĆ)
+--------------------------------------------------------------------------------
+• Sporo logiki biznesowej w main.process_file() — długa funkcja; testy jednostkowe
+  są utrudnione. Warto wydzielić kroki: ocr_and_extract(), user_confirm_and_correct(),
+  persist_and_move().
+• Mieszanie języków w komunikatach (PL) i nazw zmiennych (EN) — akceptowalne, ale
+  dla zespołu warto ustalić konwencję.
+• extracters/extract_amounts_by_pattern.py — znowu broad except — ukrywa błędy
+  składni JSON lub I/O.
+• Brak centralnego loggera (moduł logging): print nie ma poziomów, rotacji ani
+  łatwego przekierowania do pliku w produkcji.
+
+
+4. SECURITY (BEZPIECZEŃSTWO)
+--------------------------------------------------------------------------------
+• Hasła i SMTP w .env — OK dla narzędzia lokalnego; nie commitować .env.
+• system_utils.open_pdf: os.system(f'open "{path}"') — przy nietypowych nazwach
+  plików możliwe problemy z cytowaniem; subprocess z listą argumentów jest bezpieczniejszy.
+• Treść HTML w mailu sklejana z danych z bazy — przy wyświetlaniu w HTML warto
+  escapować znaki HTML (np. html.escape), jeśli w polach mogą pojawić się „<”, „&”.
+
+
+5. PERFORMANCE (WYDAJNOŚĆ)
+--------------------------------------------------------------------------------
+• OCR: każda strona PDF → osobne wywołanie Tesseract; dla wielostronicowych PDF
+  można rozważyć równoległość (ograniczoną) lub batch po stronie narzędzia.
+• mark_as_sent: pętla z wieloma execute UPDATE — executemany lub jedno zapytanie
+  z WHERE Id IN (...) przy dużej liczbie ID zmniejszy round-tripy do SQL.
+• mail_sender: dla każdej faktury przeszukuje kilka folderów — przy dużej skali
+  sensowny jest jeden słownik ścieżek zbudowany przed pętlą (cache nazwa_pliku → path).
+
+
+6. DATA / EDGE CASES (DANE I PRZYPADKI BRZEGOWE)
+--------------------------------------------------------------------------------
+• file_renamer: przy drugim kolizji nazwy (_nowy) nadal może wystąpić kolizja —
+  przyrostek z timestampem lub UUID byłby bardziej odporny.
+• extract_invoice_number: zwraca pierwszy „długi” numer z listy — kolejność
+  wzorców decyduje o trafieniu; brak walidacji względem firmy (parametr firm_name
+  nieużywany) — możliwe fałszywe dopasowania.
+• try_parse_date: nierozpoznany format zwraca raw_date — dalsze kroki (SQL, foldery)
+  mogą dostać nie-ISO; warto jednoznacznie oznaczyć błąd lub „brak”.
+• utils/date_utils: locale.setlocale w module import — efekt uboczny przy imporcie;
+  na niektórych systemach pl_PL.UTF-8 może nie istnieć (już jest try/except — OK).
+
+
+7. SUGGESTED IMPROVEMENTS (PROPONOWANE ULEPSZENIA — PRIORYTET)
+--------------------------------------------------------------------------------
+[P1] Ujednolicić warstwę DB: jeden get_db_connection, zwracanie bool z zapisów,
+     spójny driver z .env.
+[P2] Zamienić bare except na konkretne wyjątki + logging.
+[P3] Naprawić lub usunąć martwy kod get_suggestions; dopasować typ „dzial”.
+[P4] Dodać logging z poziomami; opcjonalnie plik logów na sesję przetwarzania.
+[P5] Testy jednostkowe dla: rename_file (kolizje), try_parse_date, mapowania SQL
+     values z dict (brakujące klucze).
+[P6] README z wymaganiami: Tesseract, Poppler, ODBC Driver, zmienne .env, struktura
+     folderów — skraca onboarding (jeśli dokumentacja jest pożądana przez zespół).
+
+
+8. PODSUMOWANIE
+--------------------------------------------------------------------------------
+Projekt jest spójny jako narzędzie biurowe: OCR → korekta → rename → SQL + dysk.
+Najpilniejsze technicznie: niespójność zwracanych wartości z zapisów SQL w main.py,
+  rozjazd konfiguracji pyodbc między modułami oraz jawność obsługi błędów w mail_sender.
+  Reszta to głównie utwardzenie na produkcję (logi, testy, bezpieczniejsze subprocess,
+  escapowanie HTML).
+
+================================================================================
+Koniec dokumentu
+================================================================================

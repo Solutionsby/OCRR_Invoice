@@ -116,6 +116,7 @@ def process_file(pdf_path: Path):
             "netto": final_amounts.get('netto', 0),
             "vat": final_amounts.get('vat', 0),
             "brutto": final_amounts.get('brutto', 0),
+            "kaucja": final_amounts.get('kaucja', 0),
             "dzial": final_dept,
             "kategoria": final_cat,             # NOWOŚĆ: Kategoria trafia do SQL
             "file_name": new_pdf_name

@@ -8,11 +8,12 @@
         "Wspólne",
         "Biuro",
         "Duba",
-        "Konrad"
+        "Konrad",
+        "Automat"
     ],
     "historia_firm": {
         "Farutex Sp. z o.o.": {
-            "dzial": "Gastronomia",
+            "dzial": "Automat",
             "kategorie": [
                 "MIX",
                 "Produkty"
@@ -25,7 +26,7 @@
             ]
         },
         "AUTOMAT SPEC Sp. z o.o.": {
-            "dzial": "Automaty",
+            "dzial": "Automat",
             "kategorie": [
                 "Produkty"
             ]
@@ -118,13 +119,15 @@
             "dzial": "Gastronomia",
             "kategorie": [
                 "Naprawy",
-                "Serwis"
+                "Serwis",
+                "Częsci"
             ]
         },
         "Vectra SA": {
-            "dzial": "Automaty",
+            "dzial": "Automat",
             "kategorie": [
-                "Czynsze"
+                "Czynsze",
+                "czynsze"
             ]
         },
         "KLUB TENISOWY ARKA": {
@@ -140,9 +143,14 @@
             ]
         },
         "OBI": {
-            "dzial": "Hotel",
+            "dzial": "Konrad",
             "kategorie": [
-                "Naprawy"
+                "Naprawy",
+                "Remonty",
+                "NAPRAWY",
+                "Materiały eksploatacyjne",
+                "Materiały Budowlane",
+                "Materiały"
             ]
         },
         "MOBIMEX": {
@@ -243,9 +251,10 @@
             ]
         },
         "ACTION": {
-            "dzial": "Gastronomia",
+            "dzial": "Konrad",
             "kategorie": [
-                "Czesci"
+                "Czesci",
+                "Materiały Eksploatacyjne"
             ]
         },
         "AMERICAN EXPRESS": {
@@ -267,7 +276,7 @@
             ]
         },
         "LIDER Spz oo": {
-            "dzial": "Gastronomia",
+            "dzial": "Wspólne",
             "kategorie": [
                 "Chemia"
             ]
@@ -298,13 +307,16 @@
         "mElements S.A.": {
             "dzial": "Hotel",
             "kategorie": [
-                "Prowizje"
+                "Prowizje",
+                "Prowizja"
             ]
         },
         "FIRMA ROBERT RYBICKI": {
-            "dzial": "Wspólne",
+            "dzial": "Duba",
             "kategorie": [
-                "Badania samochodów"
+                "Badania samochodów",
+                "Badanie samochodów",
+                "Samochody"
             ]
         },
         "IN MONTIBUS": {
@@ -400,17 +412,20 @@
         "SAYMON\" S.C.": {
             "dzial": "Hotel",
             "kategorie": [
-                "Przeglądy"
+                "Przeglądy",
+                "Przeglady",
+                "Monitoring"
             ]
         },
         "Energa-Operator S.A.": {
-            "dzial": "Automaty",
+            "dzial": "Automat",
             "kategorie": [
-                "Czynsz"
+                "Czynsz",
+                "Czynsze"
             ]
         },
         "Rossmann": {
-            "dzial": "Hotel",
+            "dzial": "Konrad",
             "kategorie": [
                 "Chemia"
             ]
@@ -440,7 +455,7 @@
             ]
         },
         "Televend Paweł Ożga": {
-            "dzial": "Automaty",
+            "dzial": "Automat",
             "kategorie": [
                 "Nyax"
             ]
@@ -460,7 +475,8 @@
         "KACZMARSKI GROUP": {
             "dzial": "Wspólne",
             "kategorie": [
-                "Opłaty"
+                "Opłaty",
+                "opłaty"
             ]
         },
         "Decathlon": {
@@ -482,9 +498,10 @@
             ]
         },
         "Leroy-Merlin": {
-            "dzial": "Hotel",
+            "dzial": "Duba",
             "kategorie": [
-                "Naprawy"
+                "Naprawy",
+                "Materiały Eksploatacyjne"
             ]
         },
         "Autopay Spółka Akcyjna": {
@@ -518,9 +535,10 @@
             ]
         },
         "Agroma": {
-            "dzial": "Wspólne",
+            "dzial": "Konrad",
             "kategorie": [
-                "Ogrod"
+                "Ogrod",
+                "Cześci"
             ]
         },
         "Smart Sp. z o.o.": {
@@ -548,7 +566,7 @@
             ]
         },
         "SANTE sp. z o.o.": {
-            "dzial": "Automaty",
+            "dzial": "Automat",
             "kategorie": [
                 "Produkty"
             ]
@@ -566,9 +584,12 @@
             ]
         },
         "TERG S.A.": {
-            "dzial": "Wspólne",
+            "dzial": "Hotel",
             "kategorie": [
-                "Telefon"
+                "Telefon",
+                "LEGO",
+                "Chemia",
+                "Worki do odkurzacza"
             ]
         },
         "Poczta Polska Usługi Cyfrowe Sp. z o.o.": {
@@ -605,6 +626,1600 @@
             "dzial": "Gastronomia",
             "kategorie": [
                 "Wyposazenie"
+            ]
+        },
+        "Kropek Sp. z o.o.": {
+            "dzial": "Automat",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "Too Good To Go": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "TGTG"
+            ]
+        },
+        "Expedia group": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "OTA"
+            ]
+        },
+        "IKEA Retail Sp. z o.o.": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Wyposazenie"
+            ]
+        },
+        "DAGMA Sp. z o.o.": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Oprogramowanie"
+            ]
+        },
+        "Havelland-Express": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "PRESTON S.C.": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "Lidl": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Alkohol",
+                "Spożywka",
+                "Narzędzia"
+            ]
+        },
+        "HORECA PARTS GROUP": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Wyposazenie"
+            ]
+        },
+        "LUOYANG EASTERN SUNRISE CO.,LTD": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Łózka"
+            ]
+        },
+        "Szymon Zorn ZONE 32": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Przeglady"
+            ]
+        },
+        "PHU SATURN Chomka Krzysztof": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Remonty"
+            ]
+        },
+        "Gdańskie Wodociągi Sp. z o.o.": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Przeglady"
+            ]
+        },
+        "MailerLite Ltd.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Marketing"
+            ]
+        },
+        "AMBRO EXPRESS Sp. z o.o.": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Kurier"
+            ]
+        },
+        "\"Herbapol Lublin": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "FIRMA HANDLOWA KARDA": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "\"SAYMON\" S.C.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Media"
+            ]
+        },
+        "ALTMARE": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Kurier"
+            ]
+        },
+        "AG FOODS Sp. z o.o.": {
+            "dzial": "Automat",
+            "kategorie": [
+                "Czesci",
+                "Produkty"
+            ]
+        },
+        "AMBRO EXPRESS SP. Z O.O.": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Kurier"
+            ]
+        },
+        "Mogyi Polska Sp. z o.o.": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "Frito Lay Poland Sp. z o.o.": {
+            "dzial": "Automat",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "MLEASING SP. Z O.O.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inwestycje"
+            ]
+        },
+        "FHU \"MARMAX\" Marcin Zabrocki": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "P.P.H.EWOL": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Bielizna Hotelowa"
+            ]
+        },
+        "mElements": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Prowizje"
+            ]
+        },
+        "ASTRA MAREK DOBEK": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Przeglady"
+            ]
+        },
+        "Bartosz Wiśniewski HAERSON": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "Meta Platforms Ireland Limited": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Marketing"
+            ]
+        },
+        "FoodCare Sp. z o.o.": {
+            "dzial": "Automaty",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "PARTNER FOR YOUR BUSINESS": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Opakowania"
+            ]
+        },
+        "Dabex": {
+            "dzial": "Automat",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "Przedsiębiorstwo OLINEX Lesław Zachariasz": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "FORSCH": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "YIELDPLANET Sp. z o.o.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Oprogramowanie"
+            ]
+        },
+        "OLECH": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Kluze"
+            ]
+        },
+        "PRZEDSIĘBIORSTWO HANDLOWO-TECHNICZNE \"SUPON\" S.A.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Przeglady"
+            ]
+        },
+        "Omega Spedycja i Transport Sp.z o.o": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Kurier"
+            ]
+        },
+        "PHU ASC-PRO S.C.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "HMM INVEST Sp. z o.o.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "IRONPACK SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Opakowania"
+            ]
+        },
+        "MIOTK": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "Kofart": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Naprawa"
+            ]
+        },
+        "SANTE Sp. z o.o.": {
+            "dzial": "Automat",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "BUD-MET Małetka sc": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiałty eksploatacyjne"
+            ]
+        },
+        "BIZPROJEKT SP. Z O.O.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały eksploatacyjne"
+            ]
+        },
+        "DAMJAN SPJ JANOSZ I WSPÓLNICY i j i": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "CMB SKŁADOWA DACHY SC": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "AKLAD HANDLOWO-US Ł UGOWY AGROMEC": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Częsci"
+            ]
+        },
+        "BUD-MET Małetka s.c.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "apmal Jolanta Kajewska": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "PPHU POLIROL M JACYNO SP J": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "ZAK Ł AD HANDLOWO-US Ł UGOWY AGROMECH": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Gaz"
+            ]
+        },
+        "MULTI - SERVICE SA": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "ANWIM SA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "Chwali Piętka S.C.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Hydroflow Karolina Grzejda": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "KENOCHEM Kuczyński Sp. J.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "NAPRAWA POMP WTRYSKOWYCHI": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Naprawa"
+            ]
+        },
+        "Przedsiębiorstwo Usługowo Handlowo Produkcyjne": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "SINSAY": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Opakowania"
+            ]
+        },
+        "COMPLEX TELECOM": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "QupKran Anna Szram": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "ORLEN SA": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "Auto-Partner": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Cześci"
+            ]
+        },
+        "Onninen Sp.z o.o": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "AGRAF - Kieszkowski Rafał": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "FONTIA Sp. z o.o.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Hotel"
+            ]
+        },
+        "AUTO-CZĘŚCI DARIUSZ NIDZGORSK": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Częsci"
+            ]
+        },
+        "ME M11 sp. z o.o.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Elektryka"
+            ]
+        },
+        "ORLEN SA-": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "Castorama": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "Kwiaciarnia Jarosław Zdrojewski": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Kwiaty"
+            ]
+        },
+        "P.P.H.U. POLIROL M. JACYNO": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "MW GROUP s.c.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Rolety"
+            ]
+        },
+        "PHU ART-MET": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Cześci"
+            ]
+        },
+        "VERDOORS": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "PRU AUTO-CZEŚCI DARIUSZ WOŹNICKI": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Cześci"
+            ]
+        },
+        "Leroy-MErlin": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "Hurtem24 Wojciech Kęsek": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "Dorota Rybicka Sklep Przemysłowy": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "PEU AUTO-CZEŚ CI DARIUSZ WOŹ NICKI": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Części"
+            ]
+        },
+        "Bricomarche": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "FHU FloWater MICHAŁ CWIKLAK": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "DRLEN SA": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "MATRADE Spotka Z 0.0": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "DM Jacek Herman": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "Polskie Radio - S.A.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "NORTH.PL SPÓŁKA Z OGRANICZONA": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Cześci"
+            ]
+        },
+        "Przyczepy TOMI sp. z o.o.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Narzędzia"
+            ]
+        },
+        "DECATHLON": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Sprzęt"
+            ]
+        },
+        "Peiter Automatic Piotr Osówniak": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "JT SERVICES Sp. z o.o.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "BP": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "PRZEDSIĘBIORSTWO HANOLOWO-USŁUGÓWŁ STACJA PALIW DUET": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "LMTRADE": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały eksploatacyjne"
+            ]
+        },
+        "Zakład Naparawy i Regeneracji narzędzi tnących": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Naprawa"
+            ]
+        },
+        "INTERTEL Group": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Narzędzia"
+            ]
+        },
+        "F. H. U . KALINOWSKI LECH": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Częsci"
+            ]
+        },
+        "EWA TORŁOP EVA-TEC": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Narzędzia"
+            ]
+        },
+        "Ottimo Systems": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "DOJLIDO": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "ORLEN S.A.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "ARUŚ Ri A CHROBAK SPÓŁKA JAWNA": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materac"
+            ]
+        },
+        "KBJ A. KĘSKA SPOŁKA JAWNA": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "Przedsiębiorstwo Handlowo-Usługowe": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Części"
+            ]
+        },
+        "PST Dawid Dawiec": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "Drukant Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Łódka"
+            ]
+        },
+        "\"Bimber\" Banach Spółka Jawna": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Upominki"
+            ]
+        },
+        "Conrad Electronic Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały Eksploatacyjne",
+                "Elektronika"
+            ]
+        },
+        "IKEA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Meble"
+            ]
+        },
+        "Degutis studio architektury spółka z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Prace projektowe"
+            ]
+        },
+        "RG SERWIS GWARDECKI RYSZARD": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Łódka"
+            ]
+        },
+        "SHELL POLSKA": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "HMM INVEST Sp zoo": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Rola"
+            ]
+        },
+        "AS KRZYSZTOF ŻURAWSKI": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "GRA"
+            ]
+        },
+        "PETRO-BIS": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "Inter-Auto": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Badanie techniczne"
+            ]
+        },
+        "SEA Light": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Łódka"
+            ]
+        },
+        "POZZANI POLSKA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Kawa"
+            ]
+        },
+        "BUD-MET": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "Fonaverka": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Narzędzia"
+            ]
+        },
+        "Yoer": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Urządzenia"
+            ]
+        },
+        "Apple": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "Krupiec Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Gastronomia"
+            ]
+        },
+        "EAGLE AUDIO": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "SHELL": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "DALMOR PROPERTY MANAGEMENT sp z o.o": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Łódka"
+            ]
+        },
+        "SKIPWISH": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "START FASTER 3000 Spzoo": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Gra"
+            ]
+        },
+        "JT SERVICES SP Z O.O.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Myjnia"
+            ]
+        },
+        "EQUEST ONE Sp. z o.o": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Suplementy"
+            ]
+        },
+        "TUNAI CREATIVE": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "JYSK": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "MEBLE",
+                "Meble",
+                "Inne"
+            ]
+        },
+        "romerce Dominika Witkowska": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "FNIRSI Technology Co., Ltd.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "CASTORAMA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "Superhobby": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "PKP Intercity SA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Podróz",
+                "Podróż"
+            ]
+        },
+        "KARSLAN RUSLAN KARSKI": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Podróz"
+            ]
+        },
+        "J. Szudy": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "BMG GOWOROWSKI": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Części samochodowe"
+            ]
+        },
+        "SYNERGY AGENCY": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Myjnia"
+            ]
+        },
+        "Miejsko-Gminne Centrum Kultury w Zalewie": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Sponsoring"
+            ]
+        },
+        "BILI BIKE Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "eNka S.C.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Stardust Colors": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "LA'ROMA S.C.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Kawa"
+            ]
+        },
+        "Centrum Dystrybucji Teresa Zdanowicz": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Chemia",
+                "inne"
+            ]
+        },
+        "Agd Max Tomasz Samson": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały eksploatacyjne"
+            ]
+        },
+        "EQUEST ONE Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Suplementy"
+            ]
+        },
+        "BAREL POLAND": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "OPONEOPL SA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Opny"
+            ]
+        },
+        "BMG Goworowski Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Czesci zamienne"
+            ]
+        },
+        "LANDZBERG": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "Hossa.biz": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "DHL Parcel": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Kurier"
+            ]
+        },
+        "5am Artists Sp. z o. o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "HHSHOP SPÓŁKA CYWILNA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Ubrania"
+            ]
+        },
+        "BASSAU Rawza": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały Eksploatacyjne"
+            ]
+        },
+        "ASH Auto Spa Hartman": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Myjnia"
+            ]
+        },
+        "02-823 WARSZAWA ul Osmańska 9": {
+            "dzial": "Wspólne",
+            "kategorie": []
+        },
+        "Shell Polska Sp. z o.o.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Pali",
+                "Paliwo"
+            ]
+        },
+        "iSpot Poland": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Dodatki"
+            ]
+        },
+        "DESKI INFO": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materialy budowlane"
+            ]
+        },
+        "SHILIN GmbH": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Telefony"
+            ]
+        },
+        "Webgie - Web 8 E-Commerce By Mateusz Malinowski": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "CASTORAMA POLSKA Sp. z 0.0": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały budowlane"
+            ]
+        },
+        "SNK Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Łódka"
+            ]
+        },
+        "Amogeto Rafał Włosik": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Gry"
+            ]
+        },
+        "NET-S MChmielewski": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Łódka"
+            ]
+        },
+        "ELECTROSMART WĘGRZYN SPÓŁKA KOMANDYTOWA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Telefon"
+            ]
+        },
+        "CASTORAMA POLSKA Sp. Z o.o": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały budowlane"
+            ]
+        },
+        "DDD Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Muzyka"
+            ]
+        },
+        "FEDEX": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Import"
+            ]
+        },
+        "PaperConcept Sp. z o.o. sp k": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały papiernicze"
+            ]
+        },
+        "PRZEDSIEBIORSTWO HANDLOWE \"ROLNIK\"": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Narzędzia"
+            ]
+        },
+        "BUBi MATEUSZ REYMAN": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Samochody"
+            ]
+        },
+        "Przedsiębiorstwo Usługowo-Produkcyjne Budownictwa ALFA Sp. z o.o.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materialy Budowlane"
+            ]
+        },
+        "MOVO OSKAR CHRZANOWSKI": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "Action Poland": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "inne"
+            ]
+        },
+        "JYSK Sp. 2 0.0.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "NAP Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "WYDAWNICTWO ĄĘ SPÓŁKA Z o o o": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Gra"
+            ]
+        },
+        "PAULINA ŁUKJANIUK SPÓŁKA KOMANDYTOWA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Bielizna poscielowa"
+            ]
+        },
+        "KADAB SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Gry"
+            ]
+        },
+        "MONIKA GODLEWSKA HIGHER": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Moto-Serv Sławomir Jabłoński": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Samochod"
+            ]
+        },
+        "kaufland": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Alkohol"
+            ]
+        },
+        "FIRMA HANDLOWO USŁUGOWA JUKI KATARZYNA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Produkty"
+            ]
+        },
+        "FOCUS GARDEN SPÓŁKA Z OGRANICZONĄ": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "FIRMA PRODUKCYJNO-HANDLOWO-USŁUGOWA \"DAMEX\"": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Meble"
+            ]
+        },
+        "DHL EXPRESS": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Nabywca A Conrad Electronic Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "ZARAHOME": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Castorama POLSKA": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materialy Budowlane"
+            ]
+        },
+        "Kancelaria Notarialna Wioletta Gąsiewska -Notariusz": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Umowy"
+            ]
+        },
+        "Castorama Polska": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materialy budowlane",
+                "Materiały budowlane",
+                "Materiały Budowlane"
+            ]
+        },
+        "Hvilina watch manufactory Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "DSS Systems sp z 0o": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "HOLDITY SIA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Łódka"
+            ]
+        },
+        "ELEKTROVI P BARTOSZ MATLAKOWSKI": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "IWONA DREES Rezydencja pod Tężnią & SPA Restaurant": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Podroz"
+            ]
+        },
+        "JYSK Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Wyposazenie"
+            ]
+        },
+        "Ikea Retail": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Wyposazenie"
+            ]
+        },
+        "PHU HEOPS Henryk Orłowski": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Budowlane"
+            ]
+        },
+        "CENTROBUD": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały budowlane"
+            ]
+        },
+        "Circle K Polska": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "SKUPSZOP": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Pepco Poland": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały Biurowe"
+            ]
+        },
+        "Multimedia Intelligent Products": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "amg line parts angela lewek": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Cześci"
+            ]
+        },
+        "Piniatowe Love Aleksandra": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "RF SERWIS RAFAŁ FINGAS": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "IKEA Retail": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "IMPET": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Tłumacz"
+            ]
+        },
+        "ANDRII PYSMENNYI SERWIS": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "Biuro Handlowe Gawex Zbigniew Gawroński": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Podroz"
+            ]
+        },
+        "LEDI DRIVE OLHA HALASHKOVA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Podroz"
+            ]
+        },
+        "Promerce Dominika Witkowska": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Polskie Linie Lotnicze LOT SA": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Podroze"
+            ]
+        },
+        "Havelland-Express Frischdienst GmbH": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Spozywka"
+            ]
+        },
+        "Tiger Warsaw": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "INNPRO Robert Błędowski Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "AUTO RECYCLING SERVICE": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Samochody"
+            ]
+        },
+        "AQUA - INSTAL": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Budowlane"
+            ]
+        },
+        "EP INVEST Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Meble"
+            ]
+        },
+        "CRAZYBOX ANDRII KUDRIN": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Spożywka"
+            ]
+        },
+        "SECURION": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Samochody"
+            ]
+        },
+        "Olivia Centre": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Parking"
+            ]
+        },
+        "Circle K": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "FHU DOJLIDO": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Paliwo"
+            ]
+        },
+        "ManufactureShenzhen": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "Jysk Sp. z o.o.": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Sklum Home and Deco S.L.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Meble"
+            ]
+        },
+        "BISBUT": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Zakład Produkcyjno-Usługowo-Handlowy Anna, Mariusz, Paweł Stachyra Hotel pod Kluką": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Hotel"
+            ]
+        },
+        "IKEA RETAIL": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Wizz Air": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Podróż"
+            ]
+        },
+        "Arivle Style Elwira Damaz": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "WINBE": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Samochody"
+            ]
+        },
+        "SEA LIGHT": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Łódka"
+            ]
+        },
+        "Bono24 sp Z o 0": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "Agencja AMK": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Materiały"
+            ]
+        },
+        "Sonar Records Przemysław Dremo": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "POMPIERO PARTNER SPÓŁKA Z OGRANICZONĄ": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Podroz"
+            ]
+        },
+        "ARCHEM Spółka z oo": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Inne"
+            ]
+        },
+        "KONSTAL SP. Z O.O.": {
+            "dzial": "Duba",
+            "kategorie": [
+                "Materiały Budowlane"
+            ]
+        },
+        "GG Stores Sp. z o.o. Spk": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "Elektronika"
+            ]
+        },
+        "Small Letter Studio": {
+            "dzial": "Konrad",
+            "kategorie": [
+                "inne"
+            ]
+        },
+        "Kvadro": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "PPOŻ"
+            ]
+        },
+        "WESTTRADE": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Alhohole"
+            ]
+        },
+        "Fortum Energia SA": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Media"
+            ]
+        },
+        "NAPRAWA POJAZDÓW DARIUSZ NOWICKI": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Naprawy Samochodów",
+                "Naprawa Samochodów"
+            ]
+        },
+        "HIGIENIKA S.C.": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "Allegro sp. z o.o.": {
+            "dzial": "RDS",
+            "kategorie": [
+                "Portal Aukcyjny"
+            ]
+        },
+        "Jabo": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Ciuchy Pracownicze"
+            ]
+        },
+        "Bio Polska Sp. z o.o.": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Chemia"
+            ]
+        },
+        "TEDMARK": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Opakowania"
+            ]
+        },
+        "HAERSON": {
+            "dzial": "Gastronomia",
+            "kategorie": [
+                "Wyposazenie"
+            ]
+        },
+        "INPOST SP. Z O.O.": {
+            "dzial": "Wspólne",
+            "kategorie": [
+                "Kurier"
+            ]
+        },
+        "SELENA S.A.": {
+            "dzial": "Hotel",
+            "kategorie": [
+                "Materiały Budowlane"
+            ]
+        },
+        "Mogyi Polska sp. z o.o.": {
+            "dzial": "Automat",
+            "kategorie": [
+                "Produkty"
             ]
         }
     }

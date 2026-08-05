@@ -38,13 +38,14 @@ def save_to_faktury_kosztowe(data):
         sql = """
             INSERT INTO FAKTURY_KOSZTOWE (
                 Numer_Faktury, Nazwa_Kontrahenta, Data_Wystwawienia, 
-                Kwota_Netto, Kwota_Vat, Dzial, Opis, KATEGORIA, PODKATEGORIA
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                Kwota_Netto, Kwota_Vat, Dzial, Opis, KATEGORIA, PODKATEGORIA, Kaucja
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
         # Konwersja kwot na Decimal (dla typu money w SQL)
         netto = Decimal(str(data.get('netto', 0)).replace(',', '.'))
         vat = Decimal(str(data.get('vat', 0)).replace(',', '.'))
+        kaucja = Decimal(str(data.get('kaucja', 0)).replace(',', '.'))
         
         values = (
             str(data['invoice_number']),
@@ -55,7 +56,8 @@ def save_to_faktury_kosztowe(data):
             str(data['dzial']),
             str(data.get('opis', '')),
             str(data.get('kategoria', '')),
-            str(data.get('podkategoria', ''))
+            str(data.get('podkategoria', '')),
+            kaucja,
         )
         
         cursor.execute(sql, values)
@@ -78,19 +80,23 @@ def save_to_faktury_do_zaplaty(data):
         cursor = conn.cursor()
         sql = """
             INSERT INTO FAKTURY_DO_ZAPLATY (
-                 Kontrahenta, NumerFaktury, DataPlatnosci, 
-                KwotaBrutto, NazwaPliku, CzyWyslano
+                 Kontrahent, 
+                 NumerFaktury, 
+                 DataPlatnosci, 
+                 KwotaBrutto, 
+                 NazwaPliku, 
+                 CzyWyslano
             ) VALUES (?, ?, ?, ?, ?, 0)
         """
         
         brutto = Decimal(str(data.get('brutto', 0)).replace(',', '.'))
         
         values = (
-            str(data['invoice_number']),
             str(data['firm_name']),
+            str(data['invoice_number']),
             data['payment_date'],
             brutto,
-            str(data['file_name']) # Nazwa pliku potrzebna do załącznika w mailu
+            str(data['file_name']) 
         )
         
         cursor.execute(sql, values)

@@ -21,15 +21,16 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, am
     """
     Tryb pełnej korekty ręcznej z obsługą Bazy Wiedzy (Działy i Kategorie).
     """
-    # Dodaliśmy 'category' do listy pól
-    fields = ["firm", "dept", "category", "num", "date", "pay_date", "netto", "vat", "brutto"]
+    # Dodaliśmy 'category' i 'kaucja' do listy pól
+    fields = ["firm", "dept", "category", "num", "date", "pay_date", "netto", "vat", "kaucja", "brutto"]
     
     try:
         n_val = float(str(amounts.get('netto', 0)).replace(',', '.'))
         v_val = float(str(amounts.get('vat', 0)).replace(',', '.'))
         b_val = float(str(amounts.get('brutto', 0)).replace(',', '.'))
+        k_val = float(str(amounts.get('kaucja', 0)).replace(',', '.'))
     except ValueError:
-        n_val, v_val, b_val = 0.0, 0.0, 0.0
+        n_val, v_val, b_val, k_val = 0.0, 0.0, 0.0, 0.0
 
     # Inicjalizacja danych
     data = {
@@ -41,7 +42,8 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, am
         "pay_date": pay_date,
         "netto": n_val,
         "vat": v_val,
-        "brutto": b_val
+        "brutto": b_val,
+        "kaucja": k_val,
     }
 
     current_step = 0
@@ -68,7 +70,8 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, am
             "pay_date": "Termin płatności", 
             "netto": "Kwota Netto", 
             "vat": "Kwota VAT", 
-            "brutto": "Kwota Brutto"
+            "brutto": "Kwota Brutto",
+            "kaucja": "Kaucja",
         }
 
         # --- SPECJALNA OBSŁUGA DZIAŁU (Lista numerowana) ---
@@ -117,7 +120,7 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, am
 
         # 3. Przetwarzanie zmian (tylko jeśli nieobsłużone wyżej w dept/category)
         if user_input != "" and field not in ["dept", "category"]:
-            if field in ["netto", "vat", "brutto"]:
+            if field in ["netto", "vat", "brutto", "kaucja"]:
                 try:
                     data[field] = float(user_input.replace(',', '.'))
                 except ValueError:
@@ -131,13 +134,20 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, am
             else:
                 data[field] = user_input
 
-        # 4. Automatyczne Brutto
-        if field in ["netto", "vat"]:
-            data["brutto"] = round(float(data["netto"]) + float(data["vat"]), 2)
+        # 4. Automatyczne Brutto = netto + vat + kaucja
+        if field in ["netto", "vat", "kaucja"]:
+            data["brutto"] = round(
+                float(data["netto"]) + float(data["vat"]) + float(data["kaucja"]), 2
+            )
         
         current_step += 1
 
-    final_amounts = {"netto": data["netto"], "vat": data["vat"], "brutto": data["brutto"]}
+    final_amounts = {
+        "netto": data["netto"],
+        "vat": data["vat"],
+        "brutto": data["brutto"],
+        "kaucja": data["kaucja"],
+    }
 
     # Zwracamy teraz 7 wartości (dodana kategoria na końcu)
     return (data["firm"], data["dept"], data["num"], data["date"], data["pay_date"], final_amounts, data["category"])
