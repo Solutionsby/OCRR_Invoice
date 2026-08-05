@@ -73,37 +73,42 @@ def save_to_faktury_kosztowe(data):
 def save_to_faktury_do_zaplaty(data):
     """
     Zapisuje fakturę do bazy płatności, z której korzysta mail_sender.py.
+    W polu NazwaPliku zapisujemy pełną ścieżkę do pliku (nie samą nazwę) —
+    mail_sender.py bierze ją bezpośrednio, bez przeszukiwania folderów.
+    Zwraca True/False, żeby wywołujący mógł zareagować na wynik zapisu.
     """
     conn = get_db_connection()
-    if not conn: return
+    if not conn: return False
     try:
         cursor = conn.cursor()
         sql = """
             INSERT INTO FAKTURY_DO_ZAPLATY (
-                 Kontrahent, 
-                 NumerFaktury, 
-                 DataPlatnosci, 
-                 KwotaBrutto, 
-                 NazwaPliku, 
+                 Kontrahent,
+                 NumerFaktury,
+                 DataPlatnosci,
+                 KwotaBrutto,
+                 NazwaPliku,
                  CzyWyslano
             ) VALUES (?, ?, ?, ?, ?, 0)
         """
-        
+
         brutto = Decimal(str(data.get('brutto', 0)).replace(',', '.'))
-        
+
         values = (
             str(data['firm_name']),
             str(data['invoice_number']),
             data['payment_date'],
             brutto,
-            str(data['file_name']) 
+            str(data['file_path'])
         )
-        
+
         cursor.execute(sql, values)
         conn.commit()
         print(f"✅ SQL: Zapisano w FAKTURY_DO_ZAPLATY.")
+        return True
     except Exception as e:
         print(f"❌ BŁĄD SQL (FAKTURY_DO_ZAPLATY): {e}")
+        return False
     finally:
         conn.close()
 

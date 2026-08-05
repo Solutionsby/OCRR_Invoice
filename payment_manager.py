@@ -17,16 +17,23 @@ def get_db_connection():
     return pyodbc.connect(conn_str)
 
 def load_upcoming_payments_from_sql():
-    """Pobiera faktury do opłacenia (niezapłacone, termin do 7 dni)."""
+    """
+    Pobiera faktury do opłacenia: niezapłacone, z terminem w oknie +/-7 dni
+    od dziś. Dolna granica (7 dni wstecz) chroni przed pominięciem czegoś, co
+    dopiero co trafiło do bazy z terminem tuż w przeszłości — nie łapie już
+    natomiast starego zaległego backlogu sprzed miesięcy.
+    """
     upcoming = []
     total_sum = 0
-    # Termin: od dziś do 7 dni w przód
-    limit_date = (datetime.now() + timedelta(days=7)).date()
+    today = datetime.now().date()
+    lower_bound = today - timedelta(days=7)
+    upper_bound = today + timedelta(days=7)
 
     query = """
         SELECT Id, Kontrahent, NumerFaktury, DataPlatnosci, KwotaBrutto, Dzial, NazwaPliku
         FROM FAKTURY_DO_ZAPLATY
-        WHERE CzyZaplacona = 0 
+        WHERE CzyZaplacona = 0
+        AND DataPlatnosci >= ?
         AND DataPlatnosci <= ?
         ORDER BY DataPlatnosci ASC
     """
@@ -35,7 +42,7 @@ def load_upcoming_payments_from_sql():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(query, (limit_date,))
+        cursor.execute(query, (lower_bound, upper_bound))
         
         rows = cursor.fetchall()
         for row in rows:

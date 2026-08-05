@@ -1,4 +1,6 @@
 import os
+import re
+import shutil
 import smtplib
 from email.message import EmailMessage
 from pathlib import Path
@@ -8,8 +10,30 @@ from dotenv import load_dotenv
 from config import config_manager as cfg
 import payment_manager as pm
 from utils import database_manager as db
+import main as app
 
 load_dotenv()
+
+MONTH_PREFIX_RE = re.compile(r"^(\d{2})_(\d{4})_")
+
+def _archive_paid_invoice(pdf_path: Path, firm_name: str) -> Path:
+    """
+    Przenosi wysłaną fakturę do archiwum Miesiąc/Firma — ten sam układ folderów,
+    którego używa main.py dla opłaconych faktur. Miesiąc bierzemy z nazwy pliku
+    (nadanej przez file_renamer.py jako "MM_YYYY_FV_..."), więc nie trzeba
+    trzymać osobno daty wystawienia w bazie płatności.
+    """
+    match = MONTH_PREFIX_RE.match(pdf_path.name)
+    month_num = match.group(1) if match else "00_Nieznany"
+
+    target_folder = app.DEST_DIR / month_num / firm_name
+    target_folder.mkdir(parents=True, exist_ok=True)
+    target_path = target_folder / pdf_path.name
+
+    if target_path.exists():
+        target_path.unlink()
+    shutil.move(str(pdf_path), target_path)
+    return target_path
 
 def send_payment_report():
     # 1. Pobranie danych z bazy (bez zmian)
@@ -111,29 +135,30 @@ def send_payment_report():
     msg.add_alternative(html_body, subtype='html')
 
     # --- ZAŁĄCZNIKI ---
+    # NazwaPliku w bazie to teraz pełna ścieżka do pliku (zapisywana przez
+    # main.py w momencie przenoszenia faktury do folderu "do_zaplaty"),
+    # więc bierzemy ją bezpośrednio, bez przeszukiwania folderów.
     added_ids = []
-    search_dirs = [
-        Path("faktury_przetworzone"),
-        Path("faktury_przetworzone/do_zaplaty"),
-        Path("faktury_przetworzone/do_zaplaty/do_wpisania_recznie")
-    ]
+    attached_items = []  # (pdf_path, firm_name) — do przeniesienia po udanej wysyłce
 
     for p in upcoming_payments:
-        file_name = p.get('file_name')
-        if file_name:
-            for folder in search_dirs:
-                pdf_path = folder / file_name
-                if pdf_path.exists():
-                    try:
-                        with open(pdf_path, 'rb') as f:
-                            msg.add_attachment(
-                                f.read(),
-                                maintype='application',
-                                subtype='pdf',
-                                filename=file_name
-                            )
-                        break
-                    except: pass
+        file_path = p.get('file_name')
+        if file_path:
+            pdf_path = Path(file_path)
+            if pdf_path.exists():
+                try:
+                    with open(pdf_path, 'rb') as f:
+                        msg.add_attachment(
+                            f.read(),
+                            maintype='application',
+                            subtype='pdf',
+                            filename=pdf_path.name
+                        )
+                    attached_items.append((pdf_path, p['firm_name']))
+                except Exception as e:
+                    print(f"⚠️ Nie udało się dołączyć {pdf_path.name}: {e}")
+            else:
+                print(f"⚠️ Plik nie istnieje pod zapisaną ścieżką: {pdf_path}")
         added_ids.append(p['id'])
 
     # --- WYSYŁKA ---
@@ -154,10 +179,18 @@ def send_payment_report():
             server.send_message(msg)
             
         print(f"✅ SUKCES: Raport HTML wysłany!")
-        
+
         if added_ids:
             db.mark_as_sent(added_ids)
-            
+
+        # Wysłane faktury wędrują do archiwum Miesiąc/Firma, tak jak opłacone
+        for pdf_path, firm_name in attached_items:
+            try:
+                target = _archive_paid_invoice(pdf_path, firm_name)
+                print(f"📁 Przeniesiono do archiwum: {target}")
+            except Exception as e:
+                print(f"⚠️ Nie udało się przenieść {pdf_path.name} do archiwum: {e}")
+
     except Exception as e:
         print(f"❌ BŁĄD: {e}")
 

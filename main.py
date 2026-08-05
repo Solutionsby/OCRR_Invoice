@@ -14,11 +14,12 @@ from utils import knowledge_manager as km  # NOWOŚĆ: Zarządzanie JSONem z dzi
 
 # Importy ekstraktorów
 from file_renamer import rename_file
-from extracters.extract_amounts_by_pattern import extract_invoice_amounts
 from extracters.extract_firm_name import extract_firm_name
 from extracters.extract_invoice_number import extract_invoice_number
 from extracters.extract_invoice_date import extract_invoice_date
 from extracters.extract_payment_date import extract_payment_date
+from extracters.extract_payment_info import extract_payment_status, extract_payment_form, is_paid
+from extracters.extract_gross_amount import extract_gross_amount
 from utils import database_manager as db
 
 # --- KONFIGURACJA ŚCIEŻEK ---
@@ -41,62 +42,73 @@ def process_file(pdf_path: Path):
         # 1. OCR
         path_to_poppler = r'C:\poppler\Library\bin' if platform.system() == 'Windows' else None
         images = convert_from_path(str(pdf_path), poppler_path=path_to_poppler)
-        text = "" 
+        text = ""
         for img in images:
             text += pytesseract.image_to_string(img, lang='pol') + "\n"
-        
+
+        # 1b. Dodatkowy odczyt lewej połowy pierwszej strony (kolumna Sprzedawcy).
+        # Część wizualizacji KSeF (np. z wFirma.pl) ma układ dwukolumnowy
+        # Sprzedawca/Nabywca, przez co Tesseract potrafi pomieszać obie kolumny
+        # w jednym przebiegu na całej stronie. Odczyt samej lewej połowy nigdy
+        # nie styka się z kolumną Nabywcy, więc nazwa sprzedawcy zostaje czysta.
+        left_column_text = ""
+        if images:
+            width, height = images[0].size
+            left_half = images[0].crop((0, 0, width // 2, height))
+            left_column_text = pytesseract.image_to_string(left_half, lang='pol')
+
         # 2. Pobieranie danych wstępnych
         patterns = cfg.load_patterns()
-        scanned_firm = extract_firm_name(text).strip()
+        scanned_firm = extract_firm_name(text, left_column_text=left_column_text).strip()
         proposed_firm, proposed_dept = cfg.get_firm_data(scanned_firm, patterns)
         
         date = extract_invoice_date(text)
         pay_date = extract_payment_date(text)
         num = extract_invoice_number(text, proposed_firm)
-        
-        amounts = extract_invoice_amounts(text, proposed_firm)
-        if not isinstance(amounts, dict):
-            amounts = {"netto": 0, "vat": 0, "brutto": 0}
+        payment_status = extract_payment_status(text)
+        payment_form = extract_payment_form(text)
+        brutto = extract_gross_amount(text)
 
         # 3. Interakcja z użytkownikiem
-        confirm = ui.present_proposal(proposed_firm, proposed_dept, num, date, pay_date, amounts)
-        
+        confirm = ui.present_proposal(proposed_firm, proposed_dept, num, date, pay_date, payment_status, payment_form, brutto)
+
         if confirm == 'p':
             print(f"⏭️ Pominięto fakturę: {pdf_path.name}")
             return
 
         # Wartości domyślne
         final_firm, final_dept, final_num = proposed_firm, proposed_dept, num
-        final_date, final_pay_date, final_amounts = date, pay_date, amounts
+        final_date, final_pay_date = date, pay_date
+        final_status, final_form, final_brutto = payment_status, payment_form, brutto
         final_cat = ""  # Domyślnie pusta kategoria
 
         if confirm in ['k', 'n', 'nie']:
             sys_utils.open_pdf(pdf_path)
-            
+
             # --- NOWOŚĆ: Wczytujemy bazę wiedzy przed korektą ---
             kb_data = km.load_kb()
-            
-            # Odbieramy 7 wartości (dodana kategoria na końcu)
+
+            # Odbieramy 9 wartości (dodana kategoria + status/forma/kwota płatności na końcu)
             corrections = ui.get_manual_corrections(
-                proposed_firm, proposed_dept, num, date, pay_date, amounts,
+                proposed_firm, proposed_dept, num, date, pay_date, payment_status, payment_form, brutto,
                 is_quick_mode=(confirm == 'k'),
                 kb_data=kb_data
             )
-            
+
             if corrections[0] == "SKIP":
                 print(f"⏭️ Pominięto fakturę po otwarciu PDF.")
                 sys_utils.close_pdf()
                 return
 
-            # Rozpakowanie 7 elementów korekty
-            final_firm, final_dept, final_num, final_date, final_pay_date, final_amounts, final_cat = corrections
-            
+            # Rozpakowanie 9 elementów korekty
+            final_firm, final_dept, final_num, final_date, final_pay_date, final_cat, final_status, final_form, final_brutto = corrections
+
             # --- NOWOŚĆ: Aktualizacja bazy wiedzy (nauka systemu) ---
             if confirm != 'k':
                 km.update_firm_knowledge(final_firm, final_dept, final_cat)
                 # Opcjonalnie: stary config_manager też może zostać zaktualizowany dla kompatybilności
                 cfg.update_knowledge_base(scanned_firm, final_firm, final_dept)
-                
+
             sys_utils.close_pdf()
         else:
             # Tryb "Tak" - również uczymy system (nawet jeśli kategoria jest pusta)
@@ -105,42 +117,36 @@ def process_file(pdf_path: Path):
 
         # 4. Nazewnictwo
         result = rename_file(pdf_path, text, manual_num=final_num, manual_firm=final_firm, manual_date=final_date)
-        new_pdf_name = result["new_path"].name 
+        new_pdf_name = result["new_path"].name
 
-        # 5. Przygotowanie danych do zapisu
+        # 5. Przygotowanie danych do segregacji
         final_data = {
             "invoice_number": final_num,
             "firm_name": final_firm,
             "invoice_date": final_date,
             "payment_date": final_pay_date,
-            "netto": final_amounts.get('netto', 0),
-            "vat": final_amounts.get('vat', 0),
-            "brutto": final_amounts.get('brutto', 0),
-            "kaucja": final_amounts.get('kaucja', 0),
+            "payment_status": final_status,
+            "payment_form": final_form,
+            "oplacona": is_paid(final_status),
+            "brutto": final_brutto,
             "dzial": final_dept,
-            "kategoria": final_cat,             # NOWOŚĆ: Kategoria trafia do SQL
+            "kategoria": final_cat,
             "file_name": new_pdf_name
         }
 
-        # --- LOGIKA ZAPISÓW SQL ---
-        if confirm != 'k':
-            if db.save_to_faktury_kosztowe(final_data):
-                print(f"🗄️ Zapisano w tabeli FAKTURY_KOSZTOWE.")
-        else:
-            print(f"ℹ️ Tryb K: Pominięto zapis w tabeli kosztowej.")
-
-        check_pay_date = str(final_pay_date).lower().strip()
-        if check_pay_date != "brak" and check_pay_date != "":
-            if db.save_to_faktury_do_zaplaty(final_data):
-                print(f"📧 Dodano do bazy płatności SQL.")
-
-        # 6. Segregacja folderów (używa nowej logiki Miesiąc/Dział/Firma)
+        # 6. Segregacja folderów (używa nowej logiki Miesiąc/Firma)
         target_full_path = file_manager.get_target_path(
             DEST_DIR, PAYMENT_DIR, MANUAL_DIR, final_data, confirm
         )
-        
+
         file_manager.move_file(result["new_path"], target_full_path)
         print(f"✅ Plik przeniesiony do: {target_full_path.parent.name}")
+
+        # 7. Faktury wymagające zapłaty trafiają też do bazy płatności (do mailera)
+        if file_manager.needs_payment(final_data):
+            final_data["file_path"] = str(target_full_path)
+            if db.save_to_faktury_do_zaplaty(final_data):
+                print(f"📧 Dodano do bazy płatności SQL.")
 
     except Exception as e:
         print(f"❌ BŁĄD podczas przetwarzania {pdf_path.name}: {e}")

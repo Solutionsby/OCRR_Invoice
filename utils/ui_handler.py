@@ -1,49 +1,43 @@
 from utils.date_utils import try_parse_date
+from extracters.extract_payment_info import is_paid
 
-def present_proposal(firm, dept, num, date, pay_date, amounts):
+def present_proposal(firm, dept, num, date, pay_date, payment_status, payment_form, brutto):
     """
     Wyświetla użytkownikowi dane odczytane przez OCR i pobiera decyzję.
     """
+    paid_icon = "✅" if is_paid(payment_status) else "❌"
     print("\n" + "-"*40)
     print(f"🏢 KONTRAHENT: {firm}")
     print(f"📁 DZIAŁ:      {dept}")
     print(f"🔢 NUMER FV:   {num}")
     print(f"📅 DATA FV:    {date}")
     print(f"⏳ TERMIN:     {pay_date}")
-    print(f"💰 KWOTY:      Netto: {amounts.get('netto')} | VAT: {amounts.get('vat')} | Brutto: {amounts.get('brutto')}")
+    print(f"{paid_icon} PŁATNOŚĆ:   {payment_status}")
+    print(f"💳 FORMA:      {payment_form}")
+    print(f"💰 BRUTTO:     {brutto}")
     print("-"*40)
     
     print("\n[T]ak | [N]ie (korekta) | [K]olejkuj do zapłaty (bez działu) | [P]omiń")
     choice = input("👉 Wybór: ").strip().lower()
     return choice
 
-def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, amounts, is_quick_mode=False, kb_data=None):
+def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, payment_status, payment_form, brutto, is_quick_mode=False, kb_data=None):
     """
     Tryb pełnej korekty ręcznej z obsługą Bazy Wiedzy (Działy i Kategorie).
     """
-    # Dodaliśmy 'category' i 'kaucja' do listy pól
-    fields = ["firm", "dept", "category", "num", "date", "pay_date", "netto", "vat", "kaucja", "brutto"]
-    
-    try:
-        n_val = float(str(amounts.get('netto', 0)).replace(',', '.'))
-        v_val = float(str(amounts.get('vat', 0)).replace(',', '.'))
-        b_val = float(str(amounts.get('brutto', 0)).replace(',', '.'))
-        k_val = float(str(amounts.get('kaucja', 0)).replace(',', '.'))
-    except ValueError:
-        n_val, v_val, b_val, k_val = 0.0, 0.0, 0.0, 0.0
+    fields = ["firm", "dept", "category", "num", "date", "pay_date", "payment_status", "payment_form", "brutto"]
 
     # Inicjalizacja danych
     data = {
         "firm": proposed_firm,
         "dept": "TYLKO PŁATNOŚĆ" if is_quick_mode else proposed_dept,
-        "category": "", 
+        "category": "",
         "num": num,
         "date": date,
         "pay_date": pay_date,
-        "netto": n_val,
-        "vat": v_val,
-        "brutto": b_val,
-        "kaucja": k_val,
+        "payment_status": payment_status,
+        "payment_form": payment_form,
+        "brutto": brutto,
     }
 
     current_step = 0
@@ -62,16 +56,15 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, am
 
         current_val = data[field]
         labels = {
-            "firm": "Firma", 
-            "dept": "Dział", 
+            "firm": "Firma",
+            "dept": "Dział",
             "category": "Kategoria",
-            "num": "Numer FV", 
-            "date": "Data FV", 
-            "pay_date": "Termin płatności", 
-            "netto": "Kwota Netto", 
-            "vat": "Kwota VAT", 
-            "brutto": "Kwota Brutto",
-            "kaucja": "Kaucja",
+            "num": "Numer FV",
+            "date": "Data FV",
+            "pay_date": "Termin płatności",
+            "payment_status": "Status płatności",
+            "payment_form": "Forma płatności",
+            "brutto": "Kwota brutto",
         }
 
         # --- SPECJALNA OBSŁUGA DZIAŁU (Lista numerowana) ---
@@ -102,8 +95,8 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, am
 
         # 1. Obsługa pominięcia
         if user_input.lower() == 'p':
-            return "SKIP", None, None, None, None, None, None
-        
+            return "SKIP", None, None, None, None, None, None, None, None
+
         # 2. Obsługa cofania
         if user_input.lower() == 'b':
             if current_step > 0:
@@ -120,34 +113,19 @@ def get_manual_corrections(proposed_firm, proposed_dept, num, date, pay_date, am
 
         # 3. Przetwarzanie zmian (tylko jeśli nieobsłużone wyżej w dept/category)
         if user_input != "" and field not in ["dept", "category"]:
-            if field in ["netto", "vat", "brutto", "kaucja"]:
-                try:
-                    data[field] = float(user_input.replace(',', '.'))
-                except ValueError:
-                    print("   ⚠️ Błędna liczba!")
-            
-            elif field in ["date", "pay_date"]:
+            if field in ["date", "pay_date"]:
                 unified = try_parse_date(user_input)
                 data[field] = unified
                 if unified != user_input:
                     print(f"   ✨ Poprawiono na: {unified}")
+            elif field == "brutto":
+                try:
+                    data[field] = float(user_input.replace(',', '.'))
+                except ValueError:
+                    print("   ⚠️ Błędna liczba!")
             else:
                 data[field] = user_input
 
-        # 4. Automatyczne Brutto = netto + vat + kaucja
-        if field in ["netto", "vat", "kaucja"]:
-            data["brutto"] = round(
-                float(data["netto"]) + float(data["vat"]) + float(data["kaucja"]), 2
-            )
-        
         current_step += 1
 
-    final_amounts = {
-        "netto": data["netto"],
-        "vat": data["vat"],
-        "brutto": data["brutto"],
-        "kaucja": data["kaucja"],
-    }
-
-    # Zwracamy teraz 7 wartości (dodana kategoria na końcu)
-    return (data["firm"], data["dept"], data["num"], data["date"], data["pay_date"], final_amounts, data["category"])
+    return (data["firm"], data["dept"], data["num"], data["date"], data["pay_date"], data["category"], data["payment_status"], data["payment_form"], data["brutto"])
