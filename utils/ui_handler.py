@@ -1,5 +1,6 @@
 from utils.date_utils import try_parse_date
 from extracters.extract_payment_info import is_paid
+from extracters.inne.amounts import parse_number
 
 def ask_payment_status_decision(firm, num, date, pay_date, payment_form, brutto):
     """
@@ -133,3 +134,161 @@ def get_manual_corrections(proposed_firm, num, date, pay_date, payment_status, p
         current_step += 1
 
     return (data["firm"], data["num"], data["date"], data["pay_date"], data["category"], data["payment_status"], data["payment_form"], data["brutto"])
+
+
+# --- FAKTURY EURO ---
+
+def ask_exchange_rate(eur_netto, eur_vat):
+    """
+    Operator wpisuje kurs EUR/PLN ręcznie (żadnego automatycznego pobierania
+    z NBP) — pokazujemy odczytane kwoty w EUR, żeby miał punkt odniesienia.
+    """
+    print(f"\n💱 Kwoty odczytane w EUR — Netto: {eur_netto}  VAT: {eur_vat}")
+    while True:
+        raw = input("   Kurs EUR/PLN: ").strip()
+        rate = parse_number(raw)
+        if rate > 0:
+            return rate
+        print("   ⚠️ Podaj poprawny, dodatni kurs.")
+
+
+# --- FAKTURY SPOZA KSeF ("inne") ---
+# Te faktury nie mają żadnej etykiety statusu płatności (w przeciwieństwie do
+# KSeF), więc w odróżnieniu od present_proposal/ask_payment_status_decision
+# operator jest pytany wprost, zanim jeszcze zobaczy pełną propozycję —
+# od tej odpowiedzi zależy, czy w ogóle pokazujemy termin płatności.
+
+def ask_dzial_kategoria_inne(firm_name):
+    """
+    Wywoływane tylko gdy firma jeszcze nie jest znana w
+    json/dzial_kategoria.json — raz podana wartość jest zapisywana i przy
+    kolejnych fakturach tego kontrahenta nie trzeba już pytać.
+    """
+    print(f"\n❓ Nieznany kontrahent w bazie dział/kategoria: {firm_name}")
+    dzial = input("   Dział: ").strip() or "brak"
+    kategoria = input("   Kategoria: ").strip() or "brak"
+    return dzial, kategoria
+
+
+def ask_paid_status_inne(firm, num, date):
+    print(f"\n❓ Brak informacji o statusie płatności na tej fakturze.")
+    print(f"   🏢 Kontrahent: {firm}")
+    print(f"   🔢 Numer:      {num}")
+    print(f"   📅 Data FV:    {date}")
+    answer = input("   Czy faktura jest już opłacona? [t/N]: ").strip().lower()
+    return answer in ("t", "tak")
+
+
+def present_proposal_inne(data):
+    """
+    data: firm_name, invoice_number, invoice_date, payment_date, netto, vat,
+    brutto, oplacona (bool, ustalone wcześniej przez ask_paid_status_inne).
+    """
+    paid_icon = "✅" if data["oplacona"] else "❌"
+    print("\n" + "-" * 40)
+    print(f"🏢 KONTRAHENT: {data['firm_name']}")
+    print(f"🔢 NUMER FV:   {data['invoice_number']}")
+    print(f"📅 DATA FV:    {data['invoice_date']}")
+    print(f"🏷️ DZIAŁ:      {data['dzial']}")
+    print(f"📂 KATEGORIA:  {data['kategoria']}")
+    print(f"{paid_icon} OPŁACONA:  {'tak' if data['oplacona'] else 'nie'}")
+    if not data["oplacona"]:
+        print(f"⏳ TERMIN:     {data['payment_date']}")
+    print(f"💵 NETTO:      {data['netto']}")
+    print(f"🧾 VAT:        {data['vat']}")
+    print(f"💰 BRUTTO:     {data['brutto']}  (źródło: {data['source']})")
+    print("-" * 40)
+
+    print("\n[T]ak | [N]ie (korekta) | [P]omiń")
+    return input("👉 Wybór: ").strip().lower()
+
+
+def get_manual_corrections_inne(data):
+    """
+    Korekta ręczna pól faktury spoza KSeF. Pole 'pay_date' pomijane, gdy
+    operator oznaczył fakturę jako opłaconą (wtedy termin jest nieistotny).
+    Brutto nigdy nie jest wpisywane ręcznie — zawsze przeliczane na końcu
+    jako netto+vat, zgodnie z zasadą całego etapu odczytu.
+    """
+    fields = ["firm", "num", "date", "dzial", "kategoria", "paid", "pay_date", "netto", "vat"]
+    labels = {
+        "firm": "Kontrahent",
+        "num": "Numer FV",
+        "date": "Data FV",
+        "dzial": "Dział",
+        "kategoria": "Kategoria",
+        "paid": "Opłacona? (t/n)",
+        "pay_date": "Termin płatności",
+        "netto": "Kwota netto",
+        "vat": "Kwota VAT",
+    }
+    current = {
+        "firm": data["firm_name"],
+        "num": data["invoice_number"],
+        "date": data["invoice_date"],
+        "dzial": data["dzial"],
+        "kategoria": data["kategoria"],
+        "paid": data["oplacona"],
+        "pay_date": data["payment_date"],
+        "netto": data["netto"],
+        "vat": data["vat"],
+    }
+
+    step = 0
+    print("\n" + "=" * 60)
+    print("🚀 TRYB KOREKTY RĘCZNEJ (faktura spoza KSeF)")
+    print("   [Enter] - akceptuj | [b] - cofnij | [p] - pomiń")
+    print("=" * 60)
+
+    while step < len(fields):
+        field = fields[step]
+
+        if field == "pay_date" and current["paid"]:
+            step += 1
+            continue
+
+        display_val = ("tak" if current["paid"] else "nie") if field == "paid" else current[field]
+        user_input = input(f"👉 {labels[field]} [{display_val}]: ").strip()
+
+        if user_input.lower() == 'p':
+            return "SKIP"
+
+        if user_input.lower() == 'b':
+            if step > 0:
+                step -= 1
+                if fields[step] == "pay_date" and current["paid"]:
+                    step -= 1
+                print("   << powrót")
+                continue
+            print("   ℹ️ Jesteś na początku listy.")
+            continue
+
+        if user_input != "":
+            if field == "date" or field == "pay_date":
+                unified = try_parse_date(user_input)
+                current[field] = unified
+                if unified != user_input:
+                    print(f"   ✨ Poprawiono na: {unified}")
+            elif field == "paid":
+                current[field] = user_input.lower() in ("t", "tak")
+            elif field in ("netto", "vat"):
+                current[field] = parse_number(user_input)
+            else:
+                current[field] = user_input
+
+        step += 1
+
+    brutto = round(current["netto"] + current["vat"], 2)
+    return {
+        "firm_name": current["firm"],
+        "invoice_number": current["num"],
+        "invoice_date": current["date"],
+        "dzial": current["dzial"],
+        "kategoria": current["kategoria"],
+        "oplacona": current["paid"],
+        "payment_date": "brak" if current["paid"] else current["pay_date"],
+        "netto": current["netto"],
+        "vat": current["vat"],
+        "brutto": brutto,
+        "source": "korekta_reczna",
+    }

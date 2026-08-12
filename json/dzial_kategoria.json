@@ -1,0 +1,22 @@
+{
+    "Booking.com B.V.": {
+        "dzial": "Hotel",
+        "kategoria": "OTA"
+    },
+    "HRS GmbH": {
+        "dzial": "Hotel",
+        "kategoria": "OTA"
+    },
+    "Havelland-Express Frischdienst GmbH": {
+        "dzial": "Kuchnia",
+        "kategoria": "Spozywka"
+    },
+    "Expedia": {
+        "dzial": "Hotel",
+        "kategoria": "OTA"
+    },
+    "Aurena GmbH": {
+        "dzial": "Aurena",
+        "kategoria": "Aukcje"
+    }
+}

@@ -31,40 +31,44 @@ def save_to_faktury_kosztowe(data):
     Mapowanie zgodne ze strukturą ze zdjęcia użytkownika.
     """
     conn = get_db_connection()
-    if not conn: return
+    if not conn: return False
     try:
         cursor = conn.cursor()
         # Struktura zgodna z Twoim zrzutem ekranu
         sql = """
             INSERT INTO FAKTURY_KOSZTOWE (
-                Numer_Faktury, Nazwa_Kontrahenta, Data_Wystwawienia, 
+                Numer_Faktury, Nazwa_Kontrahenta, Data_Wystwawienia,
                 Kwota_Netto, Kwota_Vat, Dzial, Opis, KATEGORIA, PODKATEGORIA, Kaucja
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        
+
         # Konwersja kwot na Decimal (dla typu money w SQL)
         netto = Decimal(str(data.get('netto', 0)).replace(',', '.'))
         vat = Decimal(str(data.get('vat', 0)).replace(',', '.'))
         kaucja = Decimal(str(data.get('kaucja', 0)).replace(',', '.'))
-        
+
+        # Limity kolumn w FAKTURY_KOSZTOWE (varchar) — obcinamy zamiast
+        # wywalać cały zapis błędem "String or binary data would be truncated".
         values = (
-            str(data['invoice_number']),
-            str(data['firm_name']),
+            str(data['invoice_number'])[:100],
+            str(data['firm_name'])[:100],
             data['invoice_date'],
             netto,
             vat,
-            str(data['dzial']),
-            str(data.get('opis', '')),
-            str(data.get('kategoria', '')),
-            str(data.get('podkategoria', '')),
+            str(data['dzial'])[:50],
+            str(data.get('opis', ''))[:50],
+            str(data.get('kategoria', ''))[:50],
+            str(data.get('podkategoria', ''))[:100],
             kaucja,
         )
-        
+
         cursor.execute(sql, values)
         conn.commit()
         print(f"✅ SQL: Zapisano w FAKTURY_KOSZTOWE (Nr: {data['invoice_number']})")
+        return True
     except Exception as e:
         print(f"❌ BŁĄD SQL (FAKTURY_KOSZTOWE): {e}")
+        return False
     finally:
         conn.close()
 
