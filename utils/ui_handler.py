@@ -138,14 +138,25 @@ def get_manual_corrections(proposed_firm, num, date, pay_date, payment_status, p
 
 # --- FAKTURY EURO ---
 
-def ask_exchange_rate(eur_netto, eur_vat):
+def ask_exchange_rate(eur_netto, eur_vat, suggested_rate=None, rate_date=None):
     """
-    Operator wpisuje kurs EUR/PLN ręcznie (żadnego automatycznego pobierania
-    z NBP) — pokazujemy odczytane kwoty w EUR, żeby miał punkt odniesienia.
+    Kurs EUR/PLN — domyślnie proponowany z NBP (dzień przed datą wystawienia,
+    zgodnie z zasadą podatkową); [Enter] akceptuje, albo operator wpisuje
+    własną wartość. Gdy NBP nie odpowiedział (brak sieci/danych),
+    suggested_rate jest None i wymagane jest wpisanie kursu ręcznie.
     """
     print(f"\n💱 Kwoty odczytane w EUR — Netto: {eur_netto}  VAT: {eur_vat}")
+    if suggested_rate is None:
+        print("   ⚠️ Nie udało się pobrać kursu z NBP — wpisz go ręcznie.")
+        prompt = "   Kurs EUR/PLN: "
+    else:
+        print(f"   Kurs NBP z {rate_date}: {suggested_rate}")
+        prompt = f"   Kurs EUR/PLN [Enter = {suggested_rate}]: "
+
     while True:
-        raw = input("   Kurs EUR/PLN: ").strip()
+        raw = input(prompt).strip()
+        if raw == "" and suggested_rate is not None:
+            return suggested_rate
         rate = parse_number(raw)
         if rate > 0:
             return rate

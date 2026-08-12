@@ -3,7 +3,7 @@ from pathlib import Path
 from pdf2image import convert_from_path
 import pytesseract
 
-from extracters.inne.identity import extract_seller_name
+from extracters.inne.identity import extract_seller_name, is_single_page_invoice
 from extracters.inne.numbers import extract_invoice_number
 from extracters.inne.dates import extract_invoice_date, extract_due_date
 from extracters.inne.amounts import extract_amounts
@@ -32,9 +32,11 @@ MANUAL_DIR = PAYMENT_DIR / "do_wpisania_recznie"
 def read_invoice(pdf_path: Path) -> dict:
     path_to_poppler = r'C:\poppler\Library\bin' if platform.system() == 'Windows' else None
     images = convert_from_path(str(pdf_path), poppler_path=path_to_poppler)
-    text = ""
-    for img in images:
-        text += pytesseract.image_to_string(img, lang='pol') + "\n"
+
+    text = pytesseract.image_to_string(images[0], lang='pol') + "\n"
+    if not is_single_page_invoice(text):
+        for img in images[1:]:
+            text += pytesseract.image_to_string(img, lang='pol') + "\n"
 
     invoice_date = extract_invoice_date(text)
     amounts = extract_amounts(text)

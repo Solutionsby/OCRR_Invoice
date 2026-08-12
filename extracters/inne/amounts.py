@@ -34,6 +34,15 @@ TOTAL_LABELS = [
 # jako separator tysięcy/dziesiętny, i minus dla not credytowych).
 _AMOUNT_AFTER = r"[:\s]*(?:PLN|USD|EUR)?\s*(-?[\d][\d\s.,]*\d)"
 
+# Ostatnia szansa, gdy kolumna kwot totalnych jest całkiem oddzielona od
+# etykiet przez OCR (dwukolumnowy layout rozjechany wierszami — np. Aurena
+# przy dłuższych listach pozycji): token w stylu "123,45"/"0,00" zawsze z
+# przecinkiem jako separatorem dziesiętnym (2 cyfry), co odróżnia go od IBAN,
+# dat i innych ciągów cyfr. Wartości totalne (Zuschlagssumme, VAT, opłata,
+# VAT, Gesamtsumme) trafiają w tekście w tej kolejności, więc ostatni taki
+# token w całym dokumencie to suma końcowa.
+_MONEY_TOKEN_RE = re.compile(r"-?\d[\d\s.]*,\d{2}")
+
 
 def parse_number(raw: str) -> float:
     """Normalizuje zapis liczby PL/EN ('2.021,88' albo '170.36') do float."""
@@ -86,8 +95,14 @@ def extract_amounts(text: str) -> dict:
         netto, vat, brutto = total, 0.0, total
         source = "fallback_total_jako_netto_vat_0"
     else:
-        netto, vat, brutto = 0.0, 0.0, 0.0
-        source = "brak_kwot"
+        fallback_tokens = _MONEY_TOKEN_RE.findall(text)
+        if fallback_tokens:
+            last_amount = parse_number(fallback_tokens[-1])
+            netto, vat, brutto = last_amount, 0.0, last_amount
+            source = "fallback_ostatnia_kwota_w_tekscie"
+        else:
+            netto, vat, brutto = 0.0, 0.0, 0.0
+            source = "brak_kwot"
 
     return {
         "netto": netto,

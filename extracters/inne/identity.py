@@ -16,6 +16,17 @@ BRAND_OVERRIDES = {
     "expedia": "Expedia",
 }
 
+# Niektóre faktury mają dalsze strony (tabele rezerwacji/transakcji), których
+# OCR regularnie wychodzi nieczytelny, a wszystkie potrzebne pola są i tak na
+# stronie 1 (np. HRS — tabela klientów w układzie, który myli Tesseract).
+# Dla takich firm główny skrypt OCR-uje tylko stronę 1.
+SINGLE_PAGE_ONLY_MARKERS = ("hrs gmbh",)
+
+
+def is_single_page_invoice(first_page_text: str) -> bool:
+    low = first_page_text.lower()
+    return any(marker in low for marker in SINGLE_PAGE_ONLY_MARKERS)
+
 
 def extract_seller_name(text: str) -> str:
     low_text = text.lower()
@@ -58,6 +69,11 @@ def _extract_name_before_suffix(line: str, suffix_match) -> str:
             name_words.insert(0, word)
         else:
             break
+    if not name_words:
+        # Sam sufiks, bez żadnego słowa przed nim — zwykle szum OCR z
+        # logo/nagłówka (np. "Sa" jako samodzielny fragment), nie prawdziwa
+        # nazwa firmy. Zgłaszamy "nie znaleziono", żeby wołający szukał dalej.
+        return None
     name_words.append(line[suffix_match.start(): suffix_match.end()])
     candidate = " ".join(name_words).strip()
     # Odcina resztki cudzysłowu/dwukropka, gdy nazwa była cytowana (np.

@@ -3,7 +3,7 @@ from pathlib import Path
 from pdf2image import convert_from_path
 import pytesseract
 
-from extracters.inne.identity import extract_seller_name
+from extracters.inne.identity import extract_seller_name, is_single_page_invoice
 from extracters.inne.numbers import extract_invoice_number
 from extracters.inne.dates import extract_invoice_date, extract_due_date
 from extracters.inne.amounts import extract_amounts
@@ -11,6 +11,7 @@ from utils import ui_handler as ui
 from utils import dzial_kategoria_manager as dk
 from utils import file_manager
 from utils import database_manager as db
+from utils import nbp_rate
 from file_renamer import rename_file
 from config import system_utils as sys_utils
 
@@ -31,9 +32,11 @@ MANUAL_DIR = PAYMENT_DIR / "do_wpisania_recznie"
 def read_invoice(pdf_path: Path) -> dict:
     path_to_poppler = r'C:\poppler\Library\bin' if platform.system() == 'Windows' else None
     images = convert_from_path(str(pdf_path), poppler_path=path_to_poppler)
-    text = ""
-    for img in images:
-        text += pytesseract.image_to_string(img, lang='pol') + "\n"
+
+    text = pytesseract.image_to_string(images[0], lang='pol') + "\n"
+    if not is_single_page_invoice(text):
+        for img in images[1:]:
+            text += pytesseract.image_to_string(img, lang='pol') + "\n"
 
     invoice_date = extract_invoice_date(text)
     amounts = extract_amounts(text)
@@ -87,7 +90,8 @@ def process_file(pdf_path: Path):
     try:
         data = read_invoice(pdf_path)
 
-        rate = ui.ask_exchange_rate(data["netto"], data["vat"])
+        suggested_rate, rate_date = nbp_rate.get_nbp_rate("eur", data["invoice_date"])
+        rate = ui.ask_exchange_rate(data["netto"], data["vat"], suggested_rate, rate_date)
         data = convert_to_pln(data, rate)
 
         dzial, kategoria = dk.get_dzial_kategoria(data["firm_name"])

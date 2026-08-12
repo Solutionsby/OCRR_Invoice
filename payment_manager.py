@@ -31,7 +31,7 @@ def load_upcoming_payments_from_sql(ignore_date_window: bool = False):
         query = """
             SELECT Id, Kontrahent, NumerFaktury, DataPlatnosci, KwotaBrutto, NazwaPliku
             FROM FAKTURY_DO_ZAPLATY
-            WHERE CzyZaplacona = 0
+            WHERE CzyZaplacona = 0 AND CzyWyslano = 0
             ORDER BY DataPlatnosci ASC
         """
         params = ()
@@ -42,7 +42,7 @@ def load_upcoming_payments_from_sql(ignore_date_window: bool = False):
         query = """
             SELECT Id, Kontrahent, NumerFaktury, DataPlatnosci, KwotaBrutto, NazwaPliku
             FROM FAKTURY_DO_ZAPLATY
-            WHERE CzyZaplacona = 0
+            WHERE CzyZaplacona = 0 AND CzyWyslano = 0
             AND DataPlatnosci >= ?
             AND DataPlatnosci <= ?
             ORDER BY DataPlatnosci ASC

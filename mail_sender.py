@@ -196,4 +196,8 @@ def send_payment_report(ignore_date_window: bool = False):
         print(f"❌ BŁĄD: {e}")
 
 if __name__ == "__main__":
-    send_payment_report()
+    import sys
+    # --all: pomija okno +/-7 dni i wysyła WSZYSTKIE nieopłacone faktury
+    # z FAKTURY_DO_ZAPLATY, niezależnie od terminu płatności.
+    force_all = "--all" in sys.argv
+    send_payment_report(ignore_date_window=force_all)

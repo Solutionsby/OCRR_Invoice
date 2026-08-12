@@ -31,8 +31,13 @@ DUE_DATE_LABELS = [
 
 IMMEDIATE_DUE_RE = re.compile(
     r"wymagalne\s*natychmiast|natychmiastow|due\s*immediately|payable\s*immediately|"
-    r"sofort\b.{0,60}?f[äa]llig",
-    re.IGNORECASE,
+    # f.llig: dowolny znak zamiast "ä", bo OCR miewa różne odczyty tej
+    # litery (a, ź, ...) w zależności od skanu.
+    r"sofort\b.{0,60}?f.llig",
+    # re.DOTALL: w stopce faktury bywa wstawiona linia adresu firmy między
+    # "sofort" i "fällig" (dwukolumnowy layout OCR-owany wierszami), więc
+    # dopuszczamy, żeby ta fraza rozjeżdżała się na dwie linie.
+    re.IGNORECASE | re.DOTALL,
 )
 
 NET_DAYS_RE = re.compile(r"(\d{1,3})\s*dni\s*od\s*(?:dostawy|wystawienia|faktury)", re.IGNORECASE)
