@@ -1,0 +1,30 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # core/paths.py czyta tę zmienną jako nadrzędną wobec logiki
+      # platform.system() — w kontenerze zawsze chcemy /data.
+      - INVOICES_BASE_PATH=/data
+      # Nadpisuje DB_DRIVER z .env (tam zostaje Driver 17 dla CLI na hoście) —
+      # w obrazie jest doinstalowany Driver 18, patrz Dockerfile.
+      - DB_DRIVER=ODBC Driver 18 for SQL Server
+    volumes:
+      # Faktury zostają fizycznie na dysku hosta — kontener widzi je przez
+      # bind mount pod /data (patrz INVOICES_BASE_PATH powyżej).
+      - ./faktury_surowe:/data/faktury_surowe
+      - ./faktury_przetworzone:/data/faktury_przetworzone
+      # patterns.json / settings.json / json/*.json są czytane przez
+      # config_manager.py, knowledge_manager.py, dzial_kategoria_manager.py
+      # ścieżkami względnymi wobec CWD (= WORKDIR /app w obrazie) — te
+      # montujemy pod /app, nie pod /data.
+      - ./json:/app/json
+      - ./patterns.json:/app/patterns.json
+      - ./settings.json:/app/settings.json
+    restart: unless-stopped
+    # Jeśli DB_SERVER / SMTP_SERVER w .env wskazują na "localhost" — z
+    # wnętrza kontenera trzeba je zmienić na host.docker.internal (na
+    # Docker Desktop dla macOS działa to bez dodatkowej konfiguracji).

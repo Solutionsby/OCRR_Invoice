@@ -5,18 +5,31 @@ from decimal import Decimal
 load_dotenv()
 
 def get_db_connection():
-    """Tworzy połączenie z bazą SQL Express na Twoim Macu/Windowsie."""
+    """
+    Tworzy połączenie z bazą SQL. Nazwa sterownika ODBC pochodzi z DB_DRIVER
+    (.env) zamiast być zaszyta na sztywno — na hoscie (CLI) to Driver 17,
+    zainstalowany lokalnie; w kontenerze Dockera doinstalowany jest Driver 18
+    (patrz Dockerfile), więc docker-compose.yml nadpisuje DB_DRIVER na 18.
+    Encrypt=no jawnie, żeby zachowanie nie zależało od domyślnej wartości
+    Encrypt, która różni się między Driverem 17 (domyślnie off) i 18
+    (domyślnie on, wymaga zaufanego certyfikatu) — bez tego Driver 18
+    odmówiłby połączenia z serwerem SQL bez skonfigurowanego TLS.
+    """
     try:
         server = os.getenv('DB_SERVER')
         database = os.getenv('DB_NAME')
         user = os.getenv('DB_USER')
         password = os.getenv('DB_PASSWORD')
+        driver = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')
+        if not driver.startswith('{'):
+            driver = f'{{{driver}}}'
         conn = pyodbc.connect(
-            'DRIVER={ODBC Driver 17 for SQL Server};'
-            f'SERVER={server};'  
+            f'DRIVER={driver};'
+            f'SERVER={server};'
             f'DATABASE={database};'
             f'UID={user};'
             f'PWD={password};'
+            'Encrypt=no;'
         )
         return conn
     except Exception as e:
