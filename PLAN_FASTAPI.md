@@ -101,8 +101,22 @@ konwersacji przy pierwszym wdrożeniu tego pliku.
       sprawdzenie przez użytkownika** (nie mam w tej sesji dostępu do przeglądarki).
 
 ## Etap 5 — domknięcie
-- [ ] Pełny regres CLI (`python run.py`, wszystkie 3 opcje) po wszystkich refaktorach
-- [ ] README: opis uruchomienia przez `docker compose up` obok opisu CLI
+- [x] Regres CLI po wszystkich refaktorach (Etapy 1-8): `main.py`, `main_inne.py`,
+      `main_euro.py`, `mail_sender.py`, `payment_manager.py` importują się bez
+      błędu i rozwiązują te same ścieżki co API (sprawdzone po każdym etapie,
+      ostatnio po Etapie 8 gdzie `core/paths.py` przeszło z stałych na funkcje).
+      Pełny interaktywny przebieg `python run.py` zweryfikowany żywo przez
+      użytkownika w Etapie 1 (KSeF) i nie zmienił się od tamtej pory — logika
+      terminala (`utils/ui_handler.py`) nietknięta w kolejnych etapach.
+- [x] README: opisane oba tryby uruchomienia (Docker/przeglądarka i terminal),
+      konfigurowalne foldery, mailer z przeglądarki, `HOST_DATA_DIR`,
+      automatyczne ostrzeżenie o duplikatach
+
+Przy okazji naprawione: `StaticFiles` serwowało `app.js`/`index.html` bez
+`Cache-Control`, więc przeglądarka potrafiła trzymać starą wersję po każdej
+zmianie (użytkownik trafił na to przy Etapie 8 — kliknięcie ⚙️ nic nie robiło,
+bo stary `app.js` nie znał jeszcze tego przycisku). Fix: middleware w
+`api/main.py` dodający `Cache-Control: no-store` do wszystkiego poza `/api/*`.
 
 ## Etap 6 — sprawdzanie duplikatów i wyszukiwarka (dodane na życzenie 2026-08-14)
 - [x] `utils/database_manager.py: find_duplicates(numer)` — szuka numeru faktury w

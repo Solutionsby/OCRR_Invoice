@@ -15,6 +15,22 @@ ensure_dirs()
 
 app = FastAPI(title="OCRR Invoice API")
 
+
+@app.middleware("http")
+async def no_cache_static(request, call_next):
+    """
+    Frontend (index.html/app.js/styles.css) jest bez builda i zmienia się
+    często w trakcie rozwoju — bez tego przeglądarka potrafi trzymać starą
+    wersję app.js z heurystycznego cache'u (brak Cache-Control ze
+    StaticFiles), przez co świeżo wgrane zmiany "nie działają" mimo
+    poprawnego kodu na serwerze, dopóki ktoś nie zrobi twardego odświeżenia.
+    """
+    response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 app.include_router(ksef_router.router)
 app.include_router(inne_router.router)
 app.include_router(euro_router.router)
