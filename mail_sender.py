@@ -10,23 +10,35 @@ from dotenv import load_dotenv
 from config import config_manager as cfg
 import payment_manager as pm
 from utils import database_manager as db
-import main as app
+from core.paths import DEST_DIR
 
 load_dotenv()
 
 MONTH_PREFIX_RE = re.compile(r"^(\d{2})_(\d{4})_")
 
+
+def get_recipients():
+    """
+    Odbiorcy pochodzą z settings.json (email_config.recipients) — edytowalne
+    z przeglądarki bez restartu kontenera. .env zostaje tylko dla sekretów
+    SMTP (SENDER/EMAIL_PASSWORD/SMTP_SERVER).
+    """
+    settings = cfg.load_settings()
+    return settings.get("email_config", {}).get("recipients", [])
+
+
 def _archive_paid_invoice(pdf_path: Path, firm_name: str) -> Path:
     """
     Przenosi wysłaną fakturę do archiwum Miesiąc/Firma — ten sam układ folderów,
-    którego używa main.py dla opłaconych faktur. Miesiąc bierzemy z nazwy pliku
-    (nadanej przez file_renamer.py jako "MM_YYYY_FV_..."), więc nie trzeba
-    trzymać osobno daty wystawienia w bazie płatności.
+    którego używa core/ksef.py (i core/inne.py, core/euro.py) dla opłaconych
+    faktur. Miesiąc bierzemy z nazwy pliku (nadanej przez file_renamer.py jako
+    "MM_YYYY_FV_..."), więc nie trzeba trzymać osobno daty wystawienia w bazie
+    płatności.
     """
     match = MONTH_PREFIX_RE.match(pdf_path.name)
     month_num = match.group(1) if match else "00_Nieznany"
 
-    target_folder = app.DEST_DIR / month_num / firm_name
+    target_folder = DEST_DIR / month_num / firm_name
     target_folder.mkdir(parents=True, exist_ok=True)
     target_path = target_folder / pdf_path.name
 
@@ -35,41 +47,38 @@ def _archive_paid_invoice(pdf_path: Path, firm_name: str) -> Path:
     shutil.move(str(pdf_path), target_path)
     return target_path
 
-def send_payment_report(ignore_date_window: bool = False):
-    # 1. Pobranie danych z bazy
-    upcoming_payments, total_sum = pm.load_upcoming_payments_from_sql(ignore_date_window=ignore_date_window)
 
+def _build_and_send(payments: list, recipients: list) -> dict:
+    """
+    Buduje jeden zbiorczy mail HTML dla podanych pozycji (z załącznikami PDF),
+    wysyła, oznacza jako wysłane w SQL i archiwizuje załączone pliki.
+    Współdzielone przez CLI (send_payment_report, cały czas wg okna dni) i API
+    (send_by_ids, tylko ręcznie wybrane pozycje) — jedno miejsce z logiką
+    wysyłki, żeby oba wywołania zachowywały się identycznie.
+    """
+    result = {"sent": False, "count": 0, "recipients": recipients, "missing_files": [], "error": None}
 
-    if not upcoming_payments:
-        print("\nℹ️ Brak faktur do zapłaty.")
-        return
+    if not payments:
+        result["error"] = "Brak faktur do wysłania."
+        return result
+    if not recipients:
+        result["error"] = "Brak zdefiniowanych odbiorców (settings.json: email_config.recipients)."
+        return result
 
-    # 2. Pobranie konfiguracji
     settings = cfg.load_settings()
-    conf = settings.get("email_config")
-    
-    # --- TUTAJ JEST ZMIANA: POBIERANIE Z .env ---
-    # Pobieramy string z .env i rozbijamy go po przecinku na listę
-    raw_recipients = os.getenv("EMAIL_RECIPIENTS", "")
-    recipient_list = [r.strip() for r in raw_recipients.split(",") if r.strip()]
-    
-    # Tworzymy jeden ciąg do nagłówka maila "To:"
-    recipient_str = ", ".join(recipient_list)
-    # --------------------------------------------
+    conf = settings.get("email_config", {})
+    recipient_str = ", ".join(recipients)
 
-    if not recipient_list:
-        print("❌ BŁĄD: Brak zdefiniowanych odbiorców w .env (EMAIL_RECIPIENTS)!")
-        return
     sender_name = "Faktury Do Zapłaty"
     sender_email = os.getenv('SENDER')
     msg = EmailMessage()
     msg['Subject'] = f"Zbiorczy Raport Płatności - {datetime.now().strftime('%d.%m.%Y')}"
     msg['From'] = f"{sender_name} <{sender_email}>"
     msg['To'] = recipient_str
-    
-    # --- PRZYGOTOWANIE TREŚCI HTML (Pełna szerokość) ---
+
     today_str = datetime.now().strftime('%d.%m.%Y %H:%M')
-    
+    total_sum = sum(p['brutto'] for p in payments)
+
     html_body = f"""
     <html>
     <head>
@@ -109,8 +118,8 @@ def send_payment_report(ignore_date_window: bool = False):
             </thead>
             <tbody>
     """
-    
-    for p in upcoming_payments:
+
+    for p in payments:
         html_body += f"""
                 <tr>
                     <td>{p['payment_date']}</td>
@@ -119,7 +128,7 @@ def send_payment_report(ignore_date_window: bool = False):
                     <td style="text-align: right;">{p['brutto']:.2f} zł</td>
                 </tr>
         """
-        
+
     html_body += f"""
                 <tr class="total">
                     <td colspan="3" style="text-align: right;">RAZEM DO ZAPŁATY:</td>
@@ -132,17 +141,16 @@ def send_payment_report(ignore_date_window: bool = False):
     </html>
     """
 
-    # Ustawiamy treść HTML
     msg.add_alternative(html_body, subtype='html')
 
     # --- ZAŁĄCZNIKI ---
-    # NazwaPliku w bazie to teraz pełna ścieżka do pliku (zapisywana przez
-    # main.py w momencie przenoszenia faktury do folderu "do_zaplaty"),
-    # więc bierzemy ją bezpośrednio, bez przeszukiwania folderów.
+    # NazwaPliku w bazie to pełna ścieżka do pliku (zapisywana przy przenoszeniu
+    # faktury do folderu "do_zaplaty"), więc bierzemy ją bezpośrednio, bez
+    # przeszukiwania folderów.
     added_ids = []
     attached_items = []  # (pdf_path, firm_name) — do przeniesienia po udanej wysyłce
 
-    for p in upcoming_payments:
+    for p in payments:
         file_path = p.get('file_name')
         if file_path:
             pdf_path = Path(file_path)
@@ -158,17 +166,19 @@ def send_payment_report(ignore_date_window: bool = False):
                     attached_items.append((pdf_path, p['firm_name']))
                 except Exception as e:
                     print(f"⚠️ Nie udało się dołączyć {pdf_path.name}: {e}")
+                    result["missing_files"].append(str(pdf_path))
             else:
                 print(f"⚠️ Plik nie istnieje pod zapisaną ścieżką: {pdf_path}")
+                result["missing_files"].append(str(pdf_path))
         added_ids.append(p['id'])
 
     # --- WYSYŁKA ---
     try:
         smtp_server = os.getenv('SMTP_SERVER')
         smtp_port = int(conf.get('smtp_port', 587))
-        
-        print(f"⏳ Wysyłanie raportu HTML do {conf.get('recipient')}...")
-        
+
+        print(f"⏳ Wysyłanie raportu HTML do {recipient_str}...")
+
         if smtp_port == 465:
             server_conn = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=60)
         else:
@@ -178,8 +188,10 @@ def send_payment_report(ignore_date_window: bool = False):
         with server_conn as server:
             server.login(os.getenv('SENDER'), os.getenv("EMAIL_PASSWORD"))
             server.send_message(msg)
-            
+
         print(f"✅ SUKCES: Raport HTML wysłany!")
+        result["sent"] = True
+        result["count"] = len(payments)
 
         if added_ids:
             db.mark_as_sent(added_ids)
@@ -194,10 +206,34 @@ def send_payment_report(ignore_date_window: bool = False):
 
     except Exception as e:
         print(f"❌ BŁĄD: {e}")
+        result["error"] = str(e)
+
+    return result
+
+
+def send_payment_report(ignore_date_window: bool = False):
+    """CLI/cron: wysyła wszystko, co pasuje do skonfigurowanego okna dni (albo
+    wszystko nieopłacone/niewysłane, gdy ignore_date_window=True — flaga --all)."""
+    days_window = cfg.load_settings().get("email_config", {}).get("days_window", 7)
+    upcoming_payments, _ = pm.load_upcoming_payments_from_sql(
+        days_window=days_window, ignore_date_window=ignore_date_window
+    )
+    if not upcoming_payments:
+        print("\nℹ️ Brak faktur do zapłaty.")
+        return
+    _build_and_send(upcoming_payments, get_recipients())
+
+
+def send_by_ids(ids: list) -> dict:
+    """API: wysyła tylko ręcznie wskazane pozycje (operator odznaczył resztę
+    w przeglądarce), niezależnie od okna dni."""
+    payments = db.get_payments_by_ids(ids)
+    return _build_and_send(payments, get_recipients())
+
 
 if __name__ == "__main__":
     import sys
-    # --all: pomija okno +/-7 dni i wysyła WSZYSTKIE nieopłacone faktury
+    # --all: pomija okno dni i wysyła WSZYSTKIE nieopłacone faktury
     # z FAKTURY_DO_ZAPLATY, niezależnie od terminu płatności.
     force_all = "--all" in sys.argv
     send_payment_report(ignore_date_window=force_all)

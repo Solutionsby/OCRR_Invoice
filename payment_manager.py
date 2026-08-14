@@ -1,26 +1,12 @@
-import pyodbc
-import os
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
 
-load_dotenv()
+from utils.database_manager import get_db_connection
 
-def get_db_connection():
-    conn_str = (
-        f"DRIVER={os.getenv('DB_DRIVER')};"
-        f"SERVER={os.getenv('DB_SERVER')};"
-        f"DATABASE={os.getenv('DB_NAME')};"
-        f"UID={os.getenv('DB_USER')};"
-        f"PWD={os.getenv('DB_PASSWORD')};"
-        "TrustServerCertificate=yes;"
-    )
-    return pyodbc.connect(conn_str)
-
-def load_upcoming_payments_from_sql(ignore_date_window: bool = False):
+def load_upcoming_payments_from_sql(days_window: int = 7, ignore_date_window: bool = False):
     """
     Pobiera faktury do opłacenia: niezapłacone. Domyślnie ograniczone do okna
-    +/-7 dni od dziś (dolna granica chroni przed pominięciem czegoś, co
-    dopiero co trafiło do bazy z terminem tuż w przeszłości, górna to zwykłe
+    +/-days_window dni od dziś (dolna granica chroni przed pominięciem czegoś,
+    co dopiero co trafiło do bazy z terminem tuż w przeszłości, górna to zwykłe
     "najbliższy tydzień"). ignore_date_window=True wyłącza to ograniczenie
     i zwraca WSZYSTKIE niezapłacone faktury bez względu na termin.
     """
@@ -37,8 +23,8 @@ def load_upcoming_payments_from_sql(ignore_date_window: bool = False):
         params = ()
     else:
         today = datetime.now().date()
-        lower_bound = today - timedelta(days=7)
-        upper_bound = today + timedelta(days=7)
+        lower_bound = today - timedelta(days=days_window)
+        upper_bound = today + timedelta(days=days_window)
         query = """
             SELECT Id, Kontrahent, NumerFaktury, DataPlatnosci, KwotaBrutto, NazwaPliku
             FROM FAKTURY_DO_ZAPLATY

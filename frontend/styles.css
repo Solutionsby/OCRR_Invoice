@@ -336,12 +336,118 @@ body {
   font-weight: 600;
 }
 
-.search-table th.sortable {
+.search-table th.sortable,
+.pending-table th.sortable {
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
 }
 
-.search-table th.sortable:hover {
+.search-table th.sortable:hover,
+.pending-table th.sortable:hover {
   color: var(--text);
+}
+
+.modal-panel-large {
+  width: min(820px, 94vw);
+  max-height: 88vh;
+}
+
+.mailer-section {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.mailer-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.mailer-section h3 {
+  font-size: 13px;
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+
+.mailer-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.mailer-section-header h3 {
+  margin: 0;
+}
+
+.mailer-section-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mailer-section-actions .btn {
+  flex: none;
+  padding: 6px 12px;
+}
+
+.mailer-policy-fields {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.mailer-policy-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mailer-policy-fields input {
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.mailer-policy-fields input#mailer-days-window {
+  width: 80px;
+}
+
+.mailer-recipients-field {
+  flex: 1;
+}
+
+.mailer-recipients-field input {
+  width: 100%;
+}
+
+.mailer-policy-fields .btn {
+  flex: none;
+  padding: 8px 14px;
+}
+
+.pending-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.pending-table th,
+.pending-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pending-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.pending-table td.numeric,
+.pending-table th.numeric {
+  text-align: right;
 }

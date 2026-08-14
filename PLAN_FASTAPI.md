@@ -82,8 +82,8 @@ konwersacji przy pierwszym wdrożeniu tego pliku.
       reużyty też w `ksef.py`) + zakładki KSeF/Spoza KSeF w `frontend/`
       (pola dział/kategoria/opłacona/netto/VAT dla "inne", status/forma/brutto
       dla KSeF — przełączane przez `[data-flow]` w HTML)
-- [ ] Weryfikacja jak w Etapie 2, na próbce faktur spoza KSeF — **czeka na
-      przykładowe pliki w `faktury_surowe/inne/`**, API/import-checki przeszły
+- [x] Weryfikacja jak w Etapie 2 — użytkownik sprawdził na realnych fakturach
+      spoza KSeF w przeglądarce, działa. Etap 3 zamknięty.
 
 ## Etap 4 — EURO
 - [x] `core/euro.py`: `analyze_euro`/`finalize_euro` (kurs NBP jako sugestia edytowalna,
@@ -118,6 +118,56 @@ konwersacji przy pierwszym wdrożeniu tego pliku.
 - [x] Zweryfikowane na żywo w kontenerze przeciw produkcyjnej bazie: `find_duplicates`
       poprawnie znajduje wcześniej zapisaną fakturę AKA Sp. z o.o., `search_invoices`
       zwraca trafne wyniki po numerze i po kontrahencie (21 dopasowań dla "Aurena")
+
+## Etap 7 — polityka wysyłki mailera (dodane na życzenie 2026-08-14)
+Zakres ustalony z użytkownikiem: podgląd + ręczny trigger wysyłki z przeglądarki,
+konfigurowalna polityka (okno dni, odbiorcy), historia wysyłek. Cron/ręczne
+`python mail_sender.py` zostaje bez zmian jako automatyczna ścieżka — UI to
+dodatkowy, ręczny sposób wywołania z podglądem i możliwością odznaczenia
+pojedynczych faktur przed wysyłką.
+
+**Naprawa przy okazji (niezależna od nowej funkcji):**
+- [x] `mail_sender.py`: `import main as app` + `app.DEST_DIR` było złamane od
+      Etapu 1 (main.py już nie eksportuje `DEST_DIR`) — zamienione na
+      `from core.paths import DEST_DIR`
+- [x] `payment_manager.py`: usunięte zduplikowane `get_db_connection()`, używa
+      `utils.database_manager.get_db_connection()` (naprawka DB_DRIVER/Encrypt
+      z Etapu 0 teraz go obejmuje)
+
+**Migracja polityki `.env` → `settings.json`** (żeby dało się edytować z UI bez
+restartu/redeployu): `EMAIL_RECIPIENTS` z `.env` i zaszyte na sztywno okno ±7 dni
+z `payment_manager.py` przenoszą się do `settings.json: email_config.recipients`
+(lista) i `email_config.days_window`. `.env` zostaje tylko dla sekretów SMTP
+(SENDER/EMAIL_PASSWORD/SMTP_SERVER).
+
+- [x] `config/config_manager.py`: dopisać `save_settings(settings)` (dziś jest
+      tylko `load_settings`)
+- [x] `payment_manager.py`: `load_upcoming_payments_from_sql(days_window=7, ...)`
+      zamiast zaszytego na sztywno `timedelta(days=7)`
+- [x] `utils/database_manager.py`: `get_payments_by_ids(ids)` (do wysyłki tylko
+      zaznaczonych pozycji), `get_sent_history(limit=50)` (do zakładki historii)
+- [x] `mail_sender.py`: wydzielone `_build_and_send(payments, recipients)` —
+      współdzielone przez CLI (`send_payment_report`, bez zmian w zachowaniu) i
+      nową ścieżkę `send_by_ids(ids)` (wysyła tylko wskazane, dla API).
+      Odbiorcy migrowani z `.env EMAIL_RECIPIENTS` do
+      `settings.json: email_config.recipients` (edytowalne z UI bez restartu);
+      `.env` zostaje tylko dla sekretów SMTP.
+- [x] `core/mailer.py`: `get_policy`/`save_policy`/`get_pending`/`get_history`/
+      `send_selected` — cienka warstwa nad powyższym, do użycia przez API
+- [x] `api/schemas.py` + `api/routers/mailer.py`: `GET/PUT /api/mailer/policy`,
+      `GET /api/mailer/pending`, `GET /api/mailer/history`,
+      `POST /api/mailer/send` (body: lista id)
+- [x] Frontend: przycisk 📧 w sidebarze otwierający duży modal — formularz
+      polityki (okno dni, odbiorcy), tabela oczekujących z checkboxami
+      (sortowalna, domyślnie wszystko zaznaczone), przycisk „Wyślij zaznaczone
+      (N)", tabela historii wysyłek pod spodem
+- [x] Weryfikacja backendu na żywo: `GET /policy` (poprawnie zmigrowane z .env),
+      `GET /pending` z domyślnym oknem ±7 dni poprawnie zwraca 0 (7 testowych
+      faktur z Etapów 2/4 ma terminy dawno poza oknem), z `days_window=200`
+      poprawnie widzi wszystkie 7. `GET /history` czyta istniejące wysyłki.
+      Import-check CLI (`mail_sender.py`, `payment_manager.py`) przechodzi.
+      **Rzeczywista wysyłka maila NIE jest testowana automatycznie przeze
+      mnie** — czeka na kliknięcie „Wyślij” przez użytkownika w przeglądarce.
 
 ---
 **Poza zakresem:** `mail_sender.py`, `payment_manager.py` zostają jako osobne

@@ -13,6 +13,7 @@
     <div class="sidebar-top">
       <h1>Faktury</h1>
       <button type="button" id="btn-search-toggle" class="btn-icon" title="Szukaj w bazie">🔍</button>
+      <button type="button" id="btn-mailer-toggle" class="btn-icon" title="Wysyłka przypomnień">📧</button>
     </div>
     <div class="flow-tabs">
       <button type="button" class="flow-tab active" data-flow-tab="ksef">KSeF</button>
@@ -117,6 +118,48 @@
       <button type="button" id="btn-search-run" class="btn btn-primary">Szukaj</button>
     </div>
     <div id="search-results"></div>
+  </div>
+</div>
+
+<div id="mailer-modal" class="modal hidden">
+  <div class="modal-backdrop" id="mailer-backdrop"></div>
+  <div class="modal-panel modal-panel-large">
+    <div class="modal-header">
+      <h2>Wysyłka przypomnień o płatnościach</h2>
+      <button type="button" id="btn-mailer-close" class="btn-icon">✕</button>
+    </div>
+
+    <div class="mailer-section">
+      <h3>Polityka</h3>
+      <div class="mailer-policy-fields">
+        <label>Okno dni (±)
+          <input id="mailer-days-window" type="number" min="0" step="1">
+        </label>
+        <label class="mailer-recipients-field">Odbiorcy (po przecinku)
+          <input id="mailer-recipients" type="text" placeholder="a@firma.pl, b@firma.pl">
+        </label>
+        <button type="button" id="btn-mailer-save-policy" class="btn">Zapisz politykę</button>
+      </div>
+    </div>
+
+    <div class="mailer-section">
+      <div class="mailer-section-header">
+        <h3>Do wysłania</h3>
+        <div class="mailer-section-actions">
+          <button type="button" id="btn-mailer-refresh" class="btn">Odśwież</button>
+          <button type="button" id="btn-mailer-send" class="btn btn-primary" disabled>
+            Wyślij zaznaczone (<span id="mailer-selected-count">0</span>)
+          </button>
+        </div>
+      </div>
+      <p id="mailer-status"></p>
+      <div id="mailer-pending"></div>
+    </div>
+
+    <div class="mailer-section">
+      <h3>Historia wysyłek</h3>
+      <div id="mailer-history"></div>
+    </div>
   </div>
 </div>
 

@@ -125,3 +125,36 @@ class FinalizeRequestEuro(BaseModel):
     eur_vat: float
     kurs_eur: float
     action: str
+
+
+class MailerPolicy(BaseModel):
+    days_window: int
+    recipients: list[str]
+
+
+class PendingPayment(BaseModel):
+    id: int
+    firm_name: str
+    invoice_number: str
+    payment_date: str
+    brutto: float
+    file_name: str | None = None
+
+
+class SentPayment(BaseModel):
+    firm_name: str
+    invoice_number: str
+    brutto: float
+    sent_at: str | None = None
+
+
+class SendRequest(BaseModel):
+    ids: list[int]
+
+
+class SendResult(BaseModel):
+    sent: bool
+    count: int
+    recipients: list[str]
+    missing_files: list[str]
+    error: str | None = None

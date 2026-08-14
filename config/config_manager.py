@@ -10,6 +10,11 @@ def load_settings():
     with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def save_settings(settings):
+    """Zapisuje settings.json (np. politykę mailera edytowaną z przeglądarki)."""
+    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+        json.dump(settings, f, indent=4, ensure_ascii=False)
+
 def load_patterns():
     """Wczytuje bazę firm/aliasów. Jeśli plik nie istnieje, zwraca pusty słownik."""
     if not PATTERNS_FILE.exists():

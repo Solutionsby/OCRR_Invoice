@@ -274,3 +274,66 @@ def mark_as_sent(id_list):
         print(f"❌ BŁĄD SQL (mark_as_sent): {e}")
     finally:
         conn.close()
+
+
+def get_payments_by_ids(id_list):
+    """
+    Pobiera konkretne pozycje z FAKTURY_DO_ZAPLATY po Id — używane, gdy
+    operator ręcznie odznaczył część faktur w przeglądarce przed wysyłką
+    (zamiast wysyłać wszystko, co akurat pasuje do okna dni).
+    """
+    conn = get_db_connection()
+    if not conn or not id_list:
+        return []
+    try:
+        cursor = conn.cursor()
+        placeholders = ",".join("?" * len(id_list))
+        cursor.execute(
+            f"SELECT Id, Kontrahent, NumerFaktury, DataPlatnosci, KwotaBrutto, NazwaPliku "
+            f"FROM FAKTURY_DO_ZAPLATY WHERE Id IN ({placeholders})",
+            list(id_list),
+        )
+        return [
+            {
+                "id": row.Id,
+                "firm_name": row.Kontrahent,
+                "invoice_number": row.NumerFaktury,
+                "payment_date": row.DataPlatnosci.strftime("%Y-%m-%d") if row.DataPlatnosci else "brak",
+                "brutto": float(row.KwotaBrutto) if row.KwotaBrutto is not None else 0.0,
+                "file_name": row.NazwaPliku,
+            }
+            for row in cursor.fetchall()
+        ]
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (get_payments_by_ids): {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def get_sent_history(limit=50):
+    """Ostatnio wysłane przypomnienia — do zakładki historii w przeglądarce."""
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT TOP (?) Kontrahent, NumerFaktury, KwotaBrutto, DataWysylki "
+            "FROM FAKTURY_DO_ZAPLATY WHERE CzyWyslano = 1 ORDER BY DataWysylki DESC",
+            (limit,),
+        )
+        return [
+            {
+                "firm_name": row.Kontrahent,
+                "invoice_number": row.NumerFaktury,
+                "brutto": float(row.KwotaBrutto) if row.KwotaBrutto is not None else 0.0,
+                "sent_at": row.DataWysylki.strftime("%Y-%m-%d %H:%M") if row.DataWysylki else None,
+            }
+            for row in cursor.fetchall()
+        ]
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (get_sent_history): {e}")
+        return []
+    finally:
+        conn.close()
