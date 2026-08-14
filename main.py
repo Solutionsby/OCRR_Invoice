@@ -1,180 +1,72 @@
-import shutil
 import platform
-import os
 from pathlib import Path
-from pdf2image import convert_from_path
-import pytesseract
 
 # Importy Twoich modułów
-from config import config_manager as cfg
 from config import system_utils as sys_utils
 from utils import ui_handler as ui
-from utils import file_manager
-from utils import knowledge_manager as km  # NOWOŚĆ: Zarządzanie JSONem z działami/kategoriami
+from utils import knowledge_manager as km  # bazy wiedzy o działach/kategoriach
 
-# Importy ekstraktorów
-from file_renamer import rename_file
-from extracters.extract_firm_name import extract_firm_name
-from extracters.extract_invoice_number import extract_invoice_number
-from extracters.extract_invoice_date import extract_invoice_date
-from extracters.extract_payment_date import extract_payment_date
-from extracters.extract_payment_info import (
-    extract_payment_status, extract_payment_form, is_paid,
-    status_is_missing, assume_unpaid_via_transfer_heuristic, assume_paid_via_cod_heuristic,
-)
-from extracters.extract_gross_amount import extract_gross_amount
-from utils import database_manager as db
+from core.paths import SOURCE_DIR, ensure_dirs
+from core.ksef import analyze_ksef, finalize_ksef
 
-# --- KONFIGURACJA ŚCIEŻEK ---
-if platform.system() == 'Windows':
-    BASE_PATH = Path(r"Z:\Twoje_Faktury") 
-    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-else:
-    BASE_PATH = Path("./") 
-
-SOURCE_DIR = BASE_PATH / "faktury_surowe"
-DEST_DIR = BASE_PATH / "faktury_przetworzone"
-PAYMENT_DIR = DEST_DIR / "do_zaplaty"
-MANUAL_DIR = PAYMENT_DIR / "do_wpisania_recznie"
-MANUAL_PAY_DIR = MANUAL_DIR / "do_zaplaty"
 
 def process_file(pdf_path: Path):
     try:
         print(f"\n" + "="*60 + f"\n📄 ANALIZA: {pdf_path.name}")
-        
-        # 1. OCR
-        path_to_poppler = r'C:\poppler\Library\bin' if platform.system() == 'Windows' else None
-        images = convert_from_path(str(pdf_path), poppler_path=path_to_poppler)
-        text = ""
-        for img in images:
-            text += pytesseract.image_to_string(img, lang='pol') + "\n"
 
-        # 1b. Dodatkowy odczyt lewej połowy pierwszej strony (kolumna Sprzedawcy).
-        # Część wizualizacji KSeF (np. z wFirma.pl) ma układ dwukolumnowy
-        # Sprzedawca/Nabywca, przez co Tesseract potrafi pomieszać obie kolumny
-        # w jednym przebiegu na całej stronie. Odczyt samej lewej połowy nigdy
-        # nie styka się z kolumną Nabywcy, więc nazwa sprzedawcy zostaje czysta.
-        left_column_text = ""
-        if images:
-            width, height = images[0].size
-            left_half = images[0].crop((0, 0, width // 2, height))
-            left_column_text = pytesseract.image_to_string(left_half, lang='pol')
+        data = analyze_ksef(pdf_path)
 
-        # 2. Pobieranie danych wstępnych
-        patterns = cfg.load_patterns()
-        scanned_firm = extract_firm_name(text, left_column_text=left_column_text).strip()
-        proposed_firm = cfg.get_firm_data(scanned_firm, patterns)
-        
-        date = extract_invoice_date(text)
-        pay_date = extract_payment_date(text)
-        num = extract_invoice_number(text, proposed_firm)
-        payment_status = extract_payment_status(text)
-        payment_form = extract_payment_form(text)
-        brutto = extract_gross_amount(text)
+        # Część layoutów KSeF nie pokazuje "Informacja o płatności" wcale i nie
+        # da się tego wywnioskować heurystyką (patrz core/ksef.py) — pytamy
+        # wprost operatora, zamiast cicho przyjmować domyślną wartość.
+        if data["payment_status_ambiguous"]:
+            sys_utils.open_pdf(pdf_path)
+            data["payment_status"] = ui.ask_payment_status_decision(
+                data["firm_name"], data["invoice_number"], data["invoice_date"],
+                data["payment_date"], data["payment_form"], data["brutto"],
+            )
+            sys_utils.close_pdf()
 
-        # 2b. Część layoutów KSeF nie pokazuje "Informacja o płatności" wcale.
-        # Pobranie = zapłata przy dostawie, więc zakładamy opłaconą. Przelew
-        # z terminem późniejszym niż data wystawienia = jeszcze nieopłacona.
-        # W innych niejednoznacznych przypadkach pytamy wprost operatora,
-        # zamiast cicho przyjmować domyślną wartość.
-        if status_is_missing(payment_status):
-            if assume_paid_via_cod_heuristic(payment_form):
-                payment_status = "Zapłacono (pobranie)"
-            elif assume_unpaid_via_transfer_heuristic(payment_form, date, pay_date):
-                payment_status = "Brak zapłaty (przelew, termin po dacie wystawienia)"
-            else:
-                # Niejednoznaczne — otwieramy PDF, żeby operator mógł sprawdzić fakturę przed decyzją
-                sys_utils.open_pdf(pdf_path)
-                payment_status = ui.ask_payment_status_decision(proposed_firm, num, date, pay_date, payment_form, brutto)
-                sys_utils.close_pdf()
-
-        # 3. Interakcja z użytkownikiem
-        confirm = ui.present_proposal(proposed_firm, num, date, pay_date, payment_status, payment_form, brutto)
+        confirm = ui.present_proposal(
+            data["firm_name"], data["invoice_number"], data["invoice_date"],
+            data["payment_date"], data["payment_status"], data["payment_form"], data["brutto"],
+        )
 
         if confirm == 'p':
             print(f"⏭️ Pominięto fakturę: {pdf_path.name}")
             return
 
-        # Wartości domyślne
-        final_firm, final_num = proposed_firm, num
-        final_date, final_pay_date = date, pay_date
-        final_status, final_form, final_brutto = payment_status, payment_form, brutto
-        final_cat = ""  # Domyślnie pusta kategoria
-
         if confirm in ['k', 'n', 'nie']:
             sys_utils.open_pdf(pdf_path)
-
-            # --- NOWOŚĆ: Wczytujemy bazę wiedzy przed korektą ---
             kb_data = km.load_kb()
 
-            # Odbieramy 8 wartości (dodana kategoria + status/forma/kwota płatności na końcu)
             corrections = ui.get_manual_corrections(
-                proposed_firm, num, date, pay_date, payment_status, payment_form, brutto,
+                data["firm_name"], data["invoice_number"], data["invoice_date"], data["payment_date"],
+                data["payment_status"], data["payment_form"], data["brutto"],
                 is_quick_mode=(confirm == 'k'),
-                kb_data=kb_data
+                kb_data=kb_data,
             )
+            sys_utils.close_pdf()
 
             if corrections[0] == "SKIP":
                 print(f"⏭️ Pominięto fakturę po otwarciu PDF.")
-                sys_utils.close_pdf()
                 return
 
-            # Rozpakowanie 8 elementów korekty
-            final_firm, final_num, final_date, final_pay_date, final_cat, final_status, final_form, final_brutto = corrections
+            (data["firm_name"], data["invoice_number"], data["invoice_date"], data["payment_date"],
+             data["kategoria"], data["payment_status"], data["payment_form"], data["brutto"]) = corrections
 
-            # --- NOWOŚĆ: Aktualizacja bazy wiedzy (nauka systemu) ---
-            if confirm != 'k':
-                km.update_firm_knowledge(final_firm, final_cat)
-                # Opcjonalnie: stary config_manager też może zostać zaktualizowany dla kompatybilności
-                cfg.update_knowledge_base(scanned_firm, final_firm)
-
-            sys_utils.close_pdf()
-        else:
-            # Tryb "Tak" - również uczymy system (nawet jeśli kategoria jest pusta)
-            km.update_firm_knowledge(final_firm, final_cat)
-            cfg.update_knowledge_base(scanned_firm, final_firm)
-
-        # 4. Nazewnictwo
-        result = rename_file(pdf_path, text, manual_num=final_num, manual_firm=final_firm, manual_date=final_date)
-        new_pdf_name = result["new_path"].name
-
-        # 5. Przygotowanie danych do segregacji
-        final_data = {
-            "invoice_number": final_num,
-            "firm_name": final_firm,
-            "invoice_date": final_date,
-            "payment_date": final_pay_date,
-            "payment_status": final_status,
-            "payment_form": final_form,
-            "oplacona": is_paid(final_status),
-            "brutto": final_brutto,
-            "kategoria": final_cat,
-            "file_name": new_pdf_name
-        }
-
-        # 6. Segregacja folderów (używa nowej logiki Miesiąc/Firma)
-        target_full_path = file_manager.get_target_path(
-            DEST_DIR, PAYMENT_DIR, MANUAL_DIR, final_data, confirm
-        )
-
-        file_manager.move_file(result["new_path"], target_full_path)
-        print(f"✅ Plik przeniesiony do: {target_full_path.parent.name}")
-
-        # 7. Faktury wymagające zapłaty trafiają też do bazy płatności (do mailera)
-        if file_manager.needs_payment(final_data):
-            final_data["file_path"] = str(target_full_path)
-            if db.save_to_faktury_do_zaplaty(final_data):
-                print(f"📧 Dodano do bazy płatności SQL.")
+        result = finalize_ksef(pdf_path, data, confirm)
+        print(f"✅ Plik przeniesiony do: {Path(result['target_path']).parent.name}")
+        if result["saved_to_payments"]:
+            print(f"📧 Dodano do bazy płatności SQL.")
 
     except Exception as e:
         print(f"❌ BŁĄD podczas przetwarzania {pdf_path.name}: {e}")
 
+
 def main():
-    SOURCE_DIR.mkdir(parents=True, exist_ok=True)
-    DEST_DIR.mkdir(parents=True, exist_ok=True)
-    PAYMENT_DIR.mkdir(parents=True, exist_ok=True)
-    MANUAL_PAY_DIR.mkdir(parents=True, exist_ok=True)
-    
+    ensure_dirs()
+
     if not Path("settings.json").exists():
         print("❌ BŁĄD: Brak pliku settings.json!")
         return
@@ -187,8 +79,9 @@ def main():
     print(f"🚀 Rozpoczynam pracę na {platform.system()}. Znaleziono {len(pdf_files)} plików.")
     for pdf in pdf_files:
         process_file(pdf)
-    
+
     print("\n🏁 Wszystkie zadania wykonane.")
+
 
 if __name__ == "__main__":
     main()

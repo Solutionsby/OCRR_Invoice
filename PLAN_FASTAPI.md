@@ -35,13 +35,18 @@ konwersacji przy pierwszym wdrożeniu tego pliku.
       to prawdopodobnie było źródło wcześniejszego blokera z montowaniem.
 
 ## Etap 1 — KSeF: `core/ksef.py` + CLI wrapper
-- [ ] Wydzielić `analyze_ksef(pdf_path)` z `main.py` (heurystyka statusu płatności
+- [x] Wydzielić `analyze_ksef(pdf_path)` z `main.py` (heurystyka statusu płatności
       jako flaga `payment_status_ambiguous`, nie prompt)
-- [ ] Wydzielić `finalize_ksef(pdf_path, data, action)` (rename/route/move/DB/knowledge)
-- [ ] Przepisać `main.py` na wrapper: `analyze_ksef` → `utils/ui_handler` (UX terminala
-      bez zmian) → `finalize_ksef`
-- [ ] Weryfikacja: `python run.py` opcja `[1]` działa jak przed refaktorem na próbce
-      realnych faktur KSeF
+- [x] Wydzielić `finalize_ksef(pdf_path, data, action)` (rename/route/move/DB/knowledge)
+- [x] Przepisać `main.py` na wrapper: `analyze_ksef` → `utils/ui_handler` (UX terminala
+      bez zmian) → `finalize_ksef`. Import-check przeszedł (`import main`,
+      `import core.ksef` bez błędów).
+- [x] Weryfikacja `analyze_ksef` (czysta ekstrakcja, bez ruszania plików/DB): 15/15 z
+      próbki co 10. pliku z 142 realnych faktur wrzuconych do `faktury_surowe/`
+      przeszło bez błędu, dane sensowne (firma/numer/data/termin/status/brutto)
+- [x] Weryfikacja pełnego `finalize_ksef` (rename+move+SQL write) — użytkownik
+      przepuścił realne faktury przez `python run.py`: działa identycznie jak
+      przed refaktorem. Etap 1 zamknięty.
 
 ## Etap 2 — API + frontend dla KSeF
 - [ ] `api/schemas.py`, `api/routers/ksef.py`: `GET /api/ksef/invoices`,
