@@ -158,3 +158,23 @@ class SendResult(BaseModel):
     recipients: list[str]
     missing_files: list[str]
     error: str | None = None
+
+
+class FolderConfig(BaseModel):
+    ksef_source: str
+    inne_source: str
+    euro_source: str
+    dest: str
+
+
+class FolderRole(BaseModel):
+    role: str
+    relative_path: str
+    absolute_path: str | None
+    exists: bool
+
+
+class BrowseResult(BaseModel):
+    path: str
+    parent: str | None
+    subfolders: list[str]

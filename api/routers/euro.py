@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
-from core.paths import SOURCE_DIR_EURO
+from core.paths import source_dir_euro
 from core.euro import analyze_euro, finalize_euro
 from api.schemas import InvoiceListItem, InvoiceProposalEuro, FinalizeRequestEuro, FinalizeResult
 from api.routers.common import resolve_pdf
@@ -10,12 +10,12 @@ router = APIRouter(prefix="/api/euro", tags=["euro"])
 
 
 def _resolve_pdf(invoice_id: str):
-    return resolve_pdf(SOURCE_DIR_EURO, invoice_id)
+    return resolve_pdf(source_dir_euro(), invoice_id)
 
 
 @router.get("/invoices", response_model=list[InvoiceListItem])
 def list_invoices():
-    files = sorted(SOURCE_DIR_EURO.glob("*.pdf"))
+    files = sorted(source_dir_euro().glob("*.pdf"))
     return [InvoiceListItem(id=f.name, file_name=f.name) for f in files]
 
 

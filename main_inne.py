@@ -3,7 +3,7 @@ from pathlib import Path
 from utils import ui_handler as ui
 from config import system_utils as sys_utils
 
-from core.paths import SOURCE_DIR_INNE, ensure_dirs
+from core.paths import source_dir_inne, ensure_dirs
 from core.inne import analyze_inne, finalize_inne
 
 
@@ -55,12 +55,13 @@ def process_file(pdf_path: Path):
 def main():
     ensure_dirs()
 
-    pdf_files = list(SOURCE_DIR_INNE.glob("*.pdf"))
+    source_dir = source_dir_inne()
+    pdf_files = list(source_dir.glob("*.pdf"))
     if not pdf_files:
-        print(f"ℹ️ Folder {SOURCE_DIR_INNE} jest pusty.")
+        print(f"ℹ️ Folder {source_dir} jest pusty.")
         return
 
-    print(f"🚀 Odczyt {len(pdf_files)} faktur spoza KSeF z {SOURCE_DIR_INNE}.")
+    print(f"🚀 Odczyt {len(pdf_files)} faktur spoza KSeF z {source_dir}.")
     accepted = []
     for pdf in pdf_files:
         try:

@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from config import config_manager as cfg
 import payment_manager as pm
 from utils import database_manager as db
-from core.paths import DEST_DIR
+from core.paths import dest_dir
 
 load_dotenv()
 
@@ -38,7 +38,7 @@ def _archive_paid_invoice(pdf_path: Path, firm_name: str) -> Path:
     match = MONTH_PREFIX_RE.match(pdf_path.name)
     month_num = match.group(1) if match else "00_Nieznany"
 
-    target_folder = DEST_DIR / month_num / firm_name
+    target_folder = dest_dir() / month_num / firm_name
     target_folder.mkdir(parents=True, exist_ok=True)
     target_path = target_folder / pdf_path.name
 

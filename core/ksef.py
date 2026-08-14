@@ -18,7 +18,7 @@ from extracters.extract_payment_info import (
     status_is_missing, assume_unpaid_via_transfer_heuristic, assume_paid_via_cod_heuristic,
 )
 from extracters.extract_gross_amount import extract_gross_amount
-from core.paths import DEST_DIR, PAYMENT_DIR, MANUAL_DIR
+from core.paths import dest_dir, payment_dir, manual_dir
 
 if platform.system() == 'Windows':
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
@@ -118,7 +118,7 @@ def finalize_ksef(pdf_path: Path, data: dict, action: str) -> dict:
     }
 
     target_full_path = file_manager.get_target_path(
-        DEST_DIR, PAYMENT_DIR, MANUAL_DIR, final_data, action
+        dest_dir(), payment_dir(), manual_dir(), final_data, action
     )
     file_manager.move_file(result["new_path"], target_full_path)
 

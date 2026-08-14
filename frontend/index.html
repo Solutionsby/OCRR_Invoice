@@ -14,6 +14,7 @@
       <h1>Faktury</h1>
       <button type="button" id="btn-search-toggle" class="btn-icon" title="Szukaj w bazie">🔍</button>
       <button type="button" id="btn-mailer-toggle" class="btn-icon" title="Wysyłka przypomnień">📧</button>
+      <button type="button" id="btn-folders-toggle" class="btn-icon" title="Foldery">⚙️</button>
     </div>
     <div class="flow-tabs">
       <button type="button" class="flow-tab active" data-flow-tab="ksef">KSeF</button>
@@ -159,6 +160,37 @@
     <div class="mailer-section">
       <h3>Historia wysyłek</h3>
       <div id="mailer-history"></div>
+    </div>
+  </div>
+</div>
+
+<div id="folders-modal" class="modal hidden">
+  <div class="modal-backdrop" id="folders-backdrop"></div>
+  <div class="modal-panel modal-panel-large">
+    <div class="modal-header">
+      <h2>Foldery źródłowe i docelowy</h2>
+      <button type="button" id="btn-folders-close" class="btn-icon">✕</button>
+    </div>
+
+    <div class="mailer-section">
+      <h3>Bieżące przypisania</h3>
+      <div id="folders-current"></div>
+    </div>
+
+    <div class="mailer-section">
+      <h3>Przeglądarka folderów</h3>
+      <div id="folders-breadcrumb" class="folders-breadcrumb"></div>
+      <div id="folders-browser"></div>
+      <div class="folders-assign">
+        Ustaw bieżący folder jako:
+        <div class="folders-assign-buttons">
+          <button type="button" class="btn" data-assign-role="ksef_source">Źródło KSeF</button>
+          <button type="button" class="btn" data-assign-role="inne_source">Źródło „inne"</button>
+          <button type="button" class="btn" data-assign-role="euro_source">Źródło EURO</button>
+          <button type="button" class="btn" data-assign-role="dest">Folder docelowy</button>
+        </div>
+      </div>
+      <p id="folders-status"></p>
     </div>
   </div>
 </div>

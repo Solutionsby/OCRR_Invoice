@@ -12,7 +12,7 @@ from utils import dzial_kategoria_manager as dk
 from utils import file_manager
 from utils import database_manager as db
 from file_renamer import rename_file
-from core.paths import DEST_DIR, PAYMENT_DIR, MANUAL_DIR
+from core.paths import dest_dir, payment_dir, manual_dir
 
 if platform.system() == 'Windows':
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
@@ -95,7 +95,7 @@ def finalize_inne(pdf_path: Path, data: dict, action: str) -> dict:
         "oplacona": final_data["oplacona"],
         "file_name": new_pdf_name,
     }
-    target_path = file_manager.get_target_path(DEST_DIR, PAYMENT_DIR, MANUAL_DIR, routing_data, action)
+    target_path = file_manager.get_target_path(dest_dir(), payment_dir(), manual_dir(), routing_data, action)
     file_manager.move_file(result["new_path"], target_path)
 
     saved_to_kosztowe = db.save_to_faktury_kosztowe(final_data)

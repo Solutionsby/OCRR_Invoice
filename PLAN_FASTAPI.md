@@ -169,6 +169,56 @@ z `payment_manager.py` przenoszą się do `settings.json: email_config.recipient
       **Rzeczywista wysyłka maila NIE jest testowana automatycznie przeze
       mnie** — czeka na kliknięcie „Wyślij” przez użytkownika w przeglądarce.
 
+## Etap 8 — konfigurowalne foldery źródłowe/docelowe (dodane na życzenie 2026-08-14)
+Cel: nowy operator na nowym komputerze ma sam wskazać, gdzie leżą jego foldery
+faktur, bez edytowania kodu/YAML. Ustalone z użytkownikiem: wybór przez klikalną
+przeglądarkę podfolderów w UI (nie pole tekstowe ze ścieżką); nowy komputer
+zawsze zostaje w tej samej sieci LAN co SQL Server (VPN/zdalny dostęp — poza
+zakresem).
+
+**Ograniczenie architektoniczne (przekazane użytkownikowi):** kontener widzi
+tylko to, co zamontowane przy starcie (`docker-compose.yml`) — przeglądarka nie
+jest w stanie przekazać kontenerowi dowolnej ścieżki z dysku hosta, to
+ograniczenie bezpieczeństwa przeglądarek/kontenerów. Podział na dwa poziomy:
+1. **Raz, przy starcie na nowym komputerze**: `HOST_DATA_DIR` w `.env` wskazuje
+   jeden, szerszy folder nadrzędny, montowany do `/data`. Domyślnie `.`
+   (katalog projektu) — zero zmian dla obecnego setupu.
+2. **Z poziomu przeglądarki, bez restartu**: operator nawiguje po podfolderach
+   `/data` i przypisuje, który to źródło KSeF/inne/EURO i który to cel —
+   zapisane w `settings.json: folders`, czytane na bieżąco (nie stałe wczytane
+   raz przy starcie).
+
+- [x] `docker-compose.yml`: `${HOST_DATA_DIR:-.}:/data` zamiast dwóch osobnych
+      bind mountów `faktury_surowe`/`faktury_przetworzone` (domyślnie `.` —
+      identyczne zachowanie jak dotąd; nowy komputer ustawia `HOST_DATA_DIR`
+      w `.env` raz, przy starcie)
+- [x] `core/paths.py`: przepisane `SOURCE_DIR`/`SOURCE_DIR_INNE`/`SOURCE_DIR_EURO`/
+      `DEST_DIR`/`PAYMENT_DIR`/`MANUAL_DIR`/`MANUAL_PAY_DIR` ze stałych modułowych
+      na funkcje (`source_dir_ksef()` itd.) czytające `settings.json: folders`
+      przy każdym wywołaniu. Domyślne wartości = dzisiejsze ścieżki, więc bez
+      zapisanej konfiguracji zachowanie identyczne jak dziś. `_resolve()` z
+      zabezpieczeniem przed wyjściem poza `/data` (potwierdzone: próba
+      `dest="../../etc"` poprawnie odrzucona z 400). `list_subfolders()` +
+      `get_folders_resolved()` dla UI (filtr szumu: `.git`, `venv`,
+      `__pycache__`, kropkowane)
+- [x] Zaktualizowane wszystkie miejsca importujące stare stałe na wywołania funkcji:
+      `main.py`, `main_inne.py`, `main_euro.py`, `core/ksef.py`, `core/inne.py`,
+      `core/euro.py`, `mail_sender.py`, `api/main.py`,
+      `api/routers/{ksef,inne,euro}.py`
+- [x] `api/schemas.py` + `api/routers/folders.py`: `GET /api/folders`,
+      `PUT /api/folders` (walidacja ścieżki), `GET /api/folders/browse?path=`
+- [x] Frontend: przycisk ⚙️ w sidebarze otwierający modal — tabela bieżących
+      przypisań (z ✓/✗ czy folder istnieje), breadcrumb + klikalna lista
+      podfolderów do nawigacji, 4 przyciski „Ustaw bieżący folder jako: źródło
+      KSeF/inne/EURO/cel"
+- [x] Weryfikacja: domyślna konfiguracja (bez zapisanego `settings.json:
+      folders`) daje identyczne ścieżki jak przed refaktorem — potwierdzone w
+      kontenerze (`/health`, `/api/folders`, listy KSeF/inne/EURO działają).
+      Zmiana przypisania przez `PUT /api/folders` i odczyt zaraz potem
+      potwierdza efekt bez restartu kontenera (przetestowane i cofnięte).
+      CLI (`main.py`/`main_inne.py`/`main_euro.py`) nadal importuje się
+      poprawnie i rozwiązuje te same ścieżki co API.
+
 ---
 **Poza zakresem:** `mail_sender.py`, `payment_manager.py` zostają jako osobne
 skrypty CLI/cron — bez UI w przeglądarce w tej rundzie.

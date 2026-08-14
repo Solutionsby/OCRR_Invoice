@@ -451,3 +451,102 @@ body {
 .pending-table th.numeric {
   text-align: right;
 }
+
+.folders-current table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.folders-current th,
+.folders-current td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.folders-current th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.folders-badge-ok {
+  color: var(--success-text);
+}
+
+.folders-badge-missing {
+  color: var(--error-text);
+}
+
+.folders-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.folders-breadcrumb button {
+  border: none;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.folders-breadcrumb span {
+  color: var(--muted);
+}
+
+#folders-browser {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+#folders-browser ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#folders-browser li {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+#folders-browser li:last-child {
+  border-bottom: none;
+}
+
+#folders-browser li:hover {
+  background: var(--bg);
+}
+
+#folders-browser .muted {
+  padding: 10px;
+  margin: 0;
+}
+
+.folders-assign {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.folders-assign-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.folders-assign-buttons .btn {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+}

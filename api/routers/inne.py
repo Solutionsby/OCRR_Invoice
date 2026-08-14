@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
-from core.paths import SOURCE_DIR_INNE
+from core.paths import source_dir_inne
 from core.inne import analyze_inne, finalize_inne
 from api.schemas import InvoiceListItem, InvoiceProposalInne, FinalizeRequestInne, FinalizeResult
 from api.routers.common import resolve_pdf
@@ -10,12 +10,12 @@ router = APIRouter(prefix="/api/inne", tags=["inne"])
 
 
 def _resolve_pdf(invoice_id: str):
-    return resolve_pdf(SOURCE_DIR_INNE, invoice_id)
+    return resolve_pdf(source_dir_inne(), invoice_id)
 
 
 @router.get("/invoices", response_model=list[InvoiceListItem])
 def list_invoices():
-    files = sorted(SOURCE_DIR_INNE.glob("*.pdf"))
+    files = sorted(source_dir_inne().glob("*.pdf"))
     return [InvoiceListItem(id=f.name, file_name=f.name) for f in files]
 
 

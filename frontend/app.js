@@ -675,3 +675,137 @@ document.getElementById("mailer-backdrop").addEventListener("click", closeMailer
 document.getElementById("btn-mailer-save-policy").addEventListener("click", saveMailerPolicy);
 document.getElementById("btn-mailer-refresh").addEventListener("click", refreshMailerPending);
 document.getElementById("btn-mailer-send").addEventListener("click", sendSelectedPayments);
+
+// --- Foldery źródłowe/docelowe (przeglądarka podfolderów zamontowanego katalogu) ---
+
+const foldersModal = document.getElementById("folders-modal");
+const foldersCurrentEl = document.getElementById("folders-current");
+const foldersBreadcrumbEl = document.getElementById("folders-breadcrumb");
+const foldersBrowserEl = document.getElementById("folders-browser");
+const foldersStatus = document.getElementById("folders-status");
+
+const FOLDER_ROLE_LABELS = {
+  ksef_source: "Źródło KSeF",
+  inne_source: "Źródło „inne\"",
+  euro_source: "Źródło EURO",
+  dest: "Folder docelowy",
+};
+
+let foldersConfig = null; // {ksef_source, inne_source, euro_source, dest} — ostatni znany stan z serwera
+let foldersBrowsePath = "";
+
+async function openFolders() {
+  foldersModal.classList.remove("hidden");
+  foldersStatus.textContent = "";
+  await loadFoldersCurrent();
+  await browseFolders("");
+}
+
+function closeFolders() {
+  foldersModal.classList.add("hidden");
+}
+
+async function loadFoldersCurrent() {
+  const res = await fetch("/api/folders");
+  const roles = await res.json();
+  foldersConfig = {};
+  for (const r of roles) foldersConfig[r.role] = r.relative_path;
+
+  foldersCurrentEl.innerHTML = "";
+  const table = document.createElement("table");
+  table.innerHTML = "<thead><tr><th>Rola</th><th>Ścieżka</th><th>Status</th></tr></thead>";
+  const tbody = document.createElement("tbody");
+  for (const r of roles) {
+    const tr = document.createElement("tr");
+    const tdRole = document.createElement("td");
+    tdRole.textContent = FOLDER_ROLE_LABELS[r.role] || r.role;
+    const tdPath = document.createElement("td");
+    tdPath.textContent = r.relative_path;
+    const tdStatus = document.createElement("td");
+    tdStatus.textContent = r.exists ? "✓ istnieje" : "✗ brak";
+    tdStatus.className = r.exists ? "folders-badge-ok" : "folders-badge-missing";
+    tr.append(tdRole, tdPath, tdStatus);
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  foldersCurrentEl.appendChild(table);
+}
+
+function renderBreadcrumb(path) {
+  foldersBreadcrumbEl.innerHTML = "";
+  const rootBtn = document.createElement("button");
+  rootBtn.type = "button";
+  rootBtn.textContent = "📁 (korzeń)";
+  rootBtn.addEventListener("click", () => browseFolders(""));
+  foldersBreadcrumbEl.appendChild(rootBtn);
+
+  if (!path) return;
+  const parts = path.split("/");
+  let acc = "";
+  for (const part of parts) {
+    acc = acc ? `${acc}/${part}` : part;
+    const sep = document.createElement("span");
+    sep.textContent = "/";
+    foldersBreadcrumbEl.appendChild(sep);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = part;
+    const target = acc;
+    btn.addEventListener("click", () => browseFolders(target));
+    foldersBreadcrumbEl.appendChild(btn);
+  }
+}
+
+async function browseFolders(path) {
+  const res = await fetch(`/api/folders/browse?path=${encodeURIComponent(path)}`);
+  if (!res.ok) {
+    foldersStatus.textContent = "Błąd: " + (await res.text());
+    return;
+  }
+  const data = await res.json();
+  foldersBrowsePath = data.path;
+  renderBreadcrumb(data.path);
+
+  foldersBrowserEl.innerHTML = "";
+  if (data.subfolders.length === 0) {
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "Brak podfolderów.";
+    foldersBrowserEl.appendChild(p);
+    return;
+  }
+  const ul = document.createElement("ul");
+  for (const name of data.subfolders) {
+    const li = document.createElement("li");
+    li.textContent = "📂 " + name;
+    li.addEventListener("click", () => {
+      browseFolders(data.path ? `${data.path}/${name}` : name);
+    });
+    ul.appendChild(li);
+  }
+  foldersBrowserEl.appendChild(ul);
+}
+
+async function assignCurrentFolder(role) {
+  if (!foldersConfig) return;
+  const updated = { ...foldersConfig, [role]: foldersBrowsePath };
+  const res = await fetch("/api/folders", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updated),
+  });
+  if (!res.ok) {
+    foldersStatus.textContent = "Błąd: " + (await res.text());
+    return;
+  }
+  foldersStatus.textContent = `Ustawiono „${FOLDER_ROLE_LABELS[role]}” na: ${foldersBrowsePath || "(korzeń)"}`;
+  await loadFoldersCurrent();
+}
+
+document.querySelectorAll("[data-assign-role]").forEach((btn) => {
+  btn.addEventListener("click", () => assignCurrentFolder(btn.dataset.assignRole));
+});
+
+document.getElementById("btn-folders-toggle").addEventListener("click", openFolders);
+document.getElementById("btn-folders-close").addEventListener("click", closeFolders);
+document.getElementById("folders-backdrop").addEventListener("click", closeFolders);

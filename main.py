@@ -6,7 +6,7 @@ from config import system_utils as sys_utils
 from utils import ui_handler as ui
 from utils import knowledge_manager as km  # bazy wiedzy o działach/kategoriach
 
-from core.paths import SOURCE_DIR, ensure_dirs
+from core.paths import source_dir_ksef, ensure_dirs
 from core.ksef import analyze_ksef, finalize_ksef
 
 
@@ -71,9 +71,10 @@ def main():
         print("❌ BŁĄD: Brak pliku settings.json!")
         return
 
-    pdf_files = list(SOURCE_DIR.glob("*.pdf"))
+    source_dir = source_dir_ksef()
+    pdf_files = list(source_dir.glob("*.pdf"))
     if not pdf_files:
-        print(f"ℹ️ Folder {SOURCE_DIR} jest pusty.")
+        print(f"ℹ️ Folder {source_dir} jest pusty.")
         return
 
     print(f"🚀 Rozpoczynam pracę na {platform.system()}. Znaleziono {len(pdf_files)} plików.")
