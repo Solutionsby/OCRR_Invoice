@@ -49,14 +49,29 @@ konwersacji przy pierwszym wdrożeniu tego pliku.
       przed refaktorem. Etap 1 zamknięty.
 
 ## Etap 2 — API + frontend dla KSeF
-- [ ] `api/schemas.py`, `api/routers/ksef.py`: `GET /api/ksef/invoices`,
+- [x] `api/schemas.py`, `api/routers/ksef.py`: `GET /api/ksef/invoices`,
       `GET /api/ksef/invoices/{id}`, `GET /api/ksef/invoices/{id}/file`,
       `POST /api/ksef/invoices/{id}/finalize`
-- [ ] `api/main.py`: FastAPI app, mount routera, serwowanie `frontend/` jako static
-- [ ] `frontend/`: lista faktur, `<iframe>` z podglądem PDF, formularz korekty,
-      przyciski Tak/Nie-korekta/Kolejkuj/Pomiń, finalize
-- [ ] Weryfikacja end-to-end w kontenerze na 1 realnej fakturze KSeF (plik na dysku
-      hosta w poprawnym folderze + wpis w SQL, zapytanie pokazane przed uruchomieniem)
+- [x] `api/main.py`: FastAPI app, mount routera, serwowanie `frontend/` jako static
+- [x] `frontend/`: lista faktur, `<iframe>` z podglądem PDF, formularz korekty,
+      przyciski Tak/Nie-korekta/Kolejkuj/Pomiń, finalize, toast z wynikiem zapisu
+- [x] Weryfikacja end-to-end lokalnie i w kontenerze na realnych fakturach KSeF
+      (plik na dysku hosta w poprawnym folderze + wpis w SQL potwierdzony odczytem)
+      i ręcznie w przeglądarce przez użytkownika. Etap 2 zamknięty.
+
+  Po drodze naprawione 3 błędy złapane w przeglądarce (nie wychwycone przez testy
+  API, bo dotyczyły zachowania przeglądarki/JS):
+  1. `FileResponse` domyślnie wysyłał `Content-Disposition: attachment` — PDF
+     próbował się pobierać zamiast wyświetlić w `<iframe>`. Fix:
+     `content_disposition_type="inline"`.
+  2. Wyścig asynchroniczny w `app.js`: OCR trwa różnie długo dla różnych faktur,
+     więc odpowiedzi `GET /invoices/{id}` mogły wrócić w innej kolejności niż
+     kliknięcia — formularz zostawał nadpisany danymi starszego kliknięcia. Fix:
+     odrzucanie odpowiedzi, jeśli `currentId` zmienił się w międzyczasie.
+  3. Pole „Kontrahent" nie aktualizowało się mimo poprawki #2 (prawdopodobnie
+     interferencja autouzupełniania przeglądarki dla pola nazwanego jak dane
+     firmy). Fix: jawny dostęp przez `form.elements.namedItem(...)` zamiast
+     `form.<name>`, plus `autocomplete="off"` na formularzu.
 
 ## Etap 3 — „inne" (spoza KSeF)
 - [ ] `core/inne.py`: `analyze_inne`/`finalize_inne` (dział/kategoria i opłacona jako

@@ -1,18 +1,28 @@
-from fastapi import FastAPI
+from pathlib import Path
 
-from core.paths import SOURCE_DIR
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
+from core.paths import SOURCE_DIR, ensure_dirs
+from api.routers import ksef as ksef_router
+
+ensure_dirs()
 
 app = FastAPI(title="OCRR Invoice API")
+
+app.include_router(ksef_router.router)
 
 
 @app.get("/health")
 def health():
-    """
-    Tymczasowy placeholder na Etap 0 — potwierdza, że kontener wstaje i widzi
-    zamontowany folder źródłowy. Routery ksef/inne/euro dochodzą w Etapie 2+.
-    """
     return {
         "status": "ok",
         "source_dir": str(SOURCE_DIR),
         "source_dir_exists": SOURCE_DIR.exists(),
     }
+
+
+# Statyczny frontend (bez builda) — musi być zamontowany na końcu, żeby nie
+# przechwycił ścieżek /api/* i /health zadeklarowanych wyżej.
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
