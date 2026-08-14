@@ -1,29 +1,16 @@
-from pathlib import Path
-from urllib.parse import unquote
-
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
 from core.paths import SOURCE_DIR
 from core.ksef import analyze_ksef, finalize_ksef
 from api.schemas import InvoiceListItem, InvoiceProposal, FinalizeRequest, FinalizeResult
+from api.routers.common import resolve_pdf
 
 router = APIRouter(prefix="/api/ksef", tags=["ksef"])
 
 
-def _resolve_pdf(invoice_id: str) -> Path:
-    """
-    id faktury to zawsze sama nazwa pliku w SOURCE_DIR (bez podfolderów) —
-    odrzucamy wszystko, co po odkodowaniu URL zawiera separator ścieżki albo
-    ".."/"." jako cały komponent, żeby nie dało się wyjść poza ten folder.
-    """
-    name = unquote(invoice_id)
-    if not name or Path(name).name != name:
-        raise HTTPException(status_code=400, detail="Nieprawidłowe id faktury.")
-    path = SOURCE_DIR / name
-    if not path.exists() or path.suffix.lower() != ".pdf":
-        raise HTTPException(status_code=404, detail="Nie znaleziono faktury.")
-    return path
+def _resolve_pdf(invoice_id: str):
+    return resolve_pdf(SOURCE_DIR, invoice_id)
 
 
 @router.get("/invoices", response_model=list[InvoiceListItem])

@@ -22,6 +22,8 @@ def get_base_path() -> Path:
 
 BASE_PATH = get_base_path()
 SOURCE_DIR = BASE_PATH / "faktury_surowe"
+SOURCE_DIR_INNE = SOURCE_DIR / "inne"
+SOURCE_DIR_EURO = SOURCE_DIR / "euro"
 DEST_DIR = BASE_PATH / "faktury_przetworzone"
 PAYMENT_DIR = DEST_DIR / "do_zaplaty"
 MANUAL_DIR = PAYMENT_DIR / "do_wpisania_recznie"
@@ -29,5 +31,5 @@ MANUAL_PAY_DIR = MANUAL_DIR / "do_zaplaty"
 
 
 def ensure_dirs() -> None:
-    for d in (SOURCE_DIR, DEST_DIR, PAYMENT_DIR, MANUAL_PAY_DIR):
+    for d in (SOURCE_DIR, SOURCE_DIR_INNE, SOURCE_DIR_EURO, DEST_DIR, PAYMENT_DIR, MANUAL_PAY_DIR):
         d.mkdir(parents=True, exist_ok=True)

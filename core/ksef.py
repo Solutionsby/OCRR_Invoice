@@ -80,6 +80,7 @@ def analyze_ksef(pdf_path: Path) -> dict:
         "payment_form": payment_form,
         "brutto": brutto,
         "kategoria": "",
+        "duplicate_matches": db.find_duplicates(num),
     }
 
 

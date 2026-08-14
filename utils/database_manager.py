@@ -129,6 +129,128 @@ def save_to_faktury_do_zaplaty(data):
     finally:
         conn.close()
 
+# --- SPRAWDZANIE DUPLIKATÓW (wywoływane przy analizie, przed potwierdzeniem) ---
+
+def find_duplicates(invoice_number):
+    """
+    Szuka wcześniej zapisanych wpisów o tym samym numerze faktury w obu
+    tabelach — pomaga złapać przypadek ponownego przetworzenia tej samej
+    faktury (np. powtórnie ściągniętej z KSeF). Dopasowanie tylko po numerze
+    (nie po kontrahencie) — operator i tak widzi kontrahenta z dopasowanego
+    wiersza i sam oceni, czy to fałszywy alarm (różne firmy mogą teoretycznie
+    mieć ten sam numer faktury).
+    """
+    conn = get_db_connection()
+    if not conn or not str(invoice_number).strip() or str(invoice_number).strip().lower() == 'brak':
+        return []
+    try:
+        cursor = conn.cursor()
+        matches = []
+
+        cursor.execute(
+            "SELECT Id, Kontrahent, NazwaPliku FROM FAKTURY_DO_ZAPLATY WHERE NumerFaktury = ?",
+            (str(invoice_number),),
+        )
+        for row in cursor.fetchall():
+            matches.append({
+                "tabela": "FAKTURY_DO_ZAPLATY",
+                "kontrahent": row.Kontrahent,
+                "plik": row.NazwaPliku,
+            })
+
+        cursor.execute(
+            "SELECT Nazwa_Kontrahenta FROM FAKTURY_KOSZTOWE WHERE Numer_Faktury = ?",
+            (str(invoice_number),),
+        )
+        for row in cursor.fetchall():
+            matches.append({
+                "tabela": "FAKTURY_KOSZTOWE",
+                "kontrahent": row.Nazwa_Kontrahenta,
+                "plik": None,
+            })
+
+        return matches
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (find_duplicates): {e}")
+        return []
+    finally:
+        conn.close()
+
+def search_invoices(numer="", kontrahent=""):
+    """
+    Szuka faktur w obu tabelach po częściowym, niewrażliwym na wielkość liter
+    dopasowaniu numeru i/lub kontrahenta — ręczne "czy to już jest w bazie",
+    niezależne od aktualnie przeglądanego pliku. Wymaga podania co najmniej
+    jednego z dwóch kryteriów (inaczej zwraca pustą listę, żeby nie zrzucać
+    całej tabeli).
+    """
+    numer = (numer or "").strip()
+    kontrahent = (kontrahent or "").strip()
+    if not numer and not kontrahent:
+        return []
+
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor()
+        results = []
+
+        where, params = [], []
+        if numer:
+            where.append("NumerFaktury LIKE ?")
+            params.append(f"%{numer}%")
+        if kontrahent:
+            where.append("Kontrahent LIKE ?")
+            params.append(f"%{kontrahent}%")
+        cursor.execute(
+            "SELECT TOP 50 Kontrahent, NumerFaktury, DataPlatnosci, KwotaBrutto, NazwaPliku, CzyWyslano "
+            "FROM FAKTURY_DO_ZAPLATY WHERE " + " AND ".join(where) + " ORDER BY Id DESC",
+            params,
+        )
+        for row in cursor.fetchall():
+            results.append({
+                "tabela": "FAKTURY_DO_ZAPLATY",
+                "numer_faktury": row.NumerFaktury,
+                "kontrahent": row.Kontrahent,
+                "data": str(row.DataPlatnosci) if row.DataPlatnosci else None,
+                "kwota": float(row.KwotaBrutto) if row.KwotaBrutto is not None else None,
+                "plik": row.NazwaPliku,
+                "wyslano": bool(row.CzyWyslano) if row.CzyWyslano is not None else None,
+            })
+
+        where2, params2 = [], []
+        if numer:
+            where2.append("Numer_Faktury LIKE ?")
+            params2.append(f"%{numer}%")
+        if kontrahent:
+            where2.append("Nazwa_Kontrahenta LIKE ?")
+            params2.append(f"%{kontrahent}%")
+        cursor.execute(
+            "SELECT TOP 50 Nazwa_Kontrahenta, Numer_Faktury, Data_Wystwawienia, Kwota_Netto, Kwota_Vat "
+            "FROM FAKTURY_KOSZTOWE WHERE " + " AND ".join(where2) + " ORDER BY Data_Wprowadzenia DESC",
+            params2,
+        )
+        for row in cursor.fetchall():
+            netto = float(row.Kwota_Netto) if row.Kwota_Netto is not None else 0.0
+            vat = float(row.Kwota_Vat) if row.Kwota_Vat is not None else 0.0
+            results.append({
+                "tabela": "FAKTURY_KOSZTOWE",
+                "numer_faktury": row.Numer_Faktury,
+                "kontrahent": row.Nazwa_Kontrahenta,
+                "data": str(row.Data_Wystwawienia) if row.Data_Wystwawienia else None,
+                "kwota": round(netto + vat, 2),
+                "plik": None,
+                "wyslano": None,
+            })
+
+        return results
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (search_invoices): {e}")
+        return []
+    finally:
+        conn.close()
+
 # --- FUNKCJE DLA SKRYPTU MAIL_SENDER.PY ---
 
 def mark_as_sent(id_list):

@@ -5,12 +5,18 @@ from fastapi.staticfiles import StaticFiles
 
 from core.paths import SOURCE_DIR, ensure_dirs
 from api.routers import ksef as ksef_router
+from api.routers import inne as inne_router
+from api.routers import euro as euro_router
+from api.routers import search as search_router
 
 ensure_dirs()
 
 app = FastAPI(title="OCRR Invoice API")
 
 app.include_router(ksef_router.router)
+app.include_router(inne_router.router)
+app.include_router(euro_router.router)
+app.include_router(search_router.router)
 
 
 @app.get("/health")

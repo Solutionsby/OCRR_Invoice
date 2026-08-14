@@ -3,14 +3,22 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>OCRR Invoice — KSeF</title>
+<title>OCRR Invoice</title>
 <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
 <div id="toast" class="toast hidden"></div>
 <div class="layout">
   <aside class="sidebar">
-    <h1>Faktury KSeF</h1>
+    <div class="sidebar-top">
+      <h1>Faktury</h1>
+      <button type="button" id="btn-search-toggle" class="btn-icon" title="Szukaj w bazie">🔍</button>
+    </div>
+    <div class="flow-tabs">
+      <button type="button" class="flow-tab active" data-flow-tab="ksef">KSeF</button>
+      <button type="button" class="flow-tab" data-flow-tab="inne">Spoza KSeF</button>
+      <button type="button" class="flow-tab" data-flow-tab="euro">EURO</button>
+    </div>
     <ul id="invoice-list"></ul>
   </aside>
   <main class="workspace">
@@ -20,6 +28,8 @@
         <iframe id="pdf-frame" title="Podgląd PDF"></iframe>
       </div>
       <form id="review-form" class="form-pane" autocomplete="off">
+        <div id="duplicate-warning" class="duplicate-warning hidden"></div>
+
         <label>Kontrahent
           <input name="firm_name" required>
         </label>
@@ -29,28 +39,63 @@
         <label>Data FV
           <input name="invoice_date" required>
         </label>
-        <label>Termin płatności
-          <input name="payment_date">
-        </label>
-        <label>
-          Status płatności
-          <span id="ambiguous-badge" class="badge hidden">niepewne — sprawdź PDF</span>
-          <input name="payment_status" required>
-        </label>
-        <label>Forma płatności
-          <input name="payment_form">
-        </label>
-        <label>Kwota brutto
-          <input name="brutto" type="number" step="0.01" required>
+
+        <label data-flow="inne euro">Dział
+          <input name="dzial">
         </label>
         <label>Kategoria
           <input name="kategoria">
         </label>
+
+        <label data-flow="inne euro">Opłacona
+          <select name="oplacona" required>
+            <option value="">— wybierz —</option>
+            <option value="tak">Tak</option>
+            <option value="nie">Nie</option>
+          </select>
+        </label>
+
+        <label id="payment-date-label">Termin płatności
+          <input name="payment_date">
+        </label>
+
+        <label data-flow="ksef">
+          Status płatności
+          <span id="ambiguous-badge" class="badge hidden">niepewne — sprawdź PDF</span>
+          <input name="payment_status">
+        </label>
+        <label data-flow="ksef">Forma płatności
+          <input name="payment_form">
+        </label>
+        <label data-flow="ksef">Kwota brutto
+          <input name="brutto" type="number" step="0.01">
+        </label>
+
+        <label data-flow="euro">Netto EUR (odczyt)
+          <input name="eur_netto_display" type="number" step="0.01" readonly tabindex="-1">
+        </label>
+        <label data-flow="euro">VAT EUR (odczyt)
+          <input name="eur_vat_display" type="number" step="0.01" readonly tabindex="-1">
+        </label>
+        <label data-flow="euro">Kurs EUR/PLN
+          <input name="kurs_eur" type="number" step="0.0001" required>
+        </label>
+
+        <label data-flow="inne euro">Netto (PLN)
+          <input name="netto" type="number" step="0.01">
+        </label>
+        <label data-flow="inne euro">VAT (PLN)
+          <input name="vat" type="number" step="0.01">
+        </label>
+        <label data-flow="inne euro">Brutto PLN (netto + VAT)
+          <input name="brutto_display" type="number" step="0.01" readonly tabindex="-1">
+        </label>
+
         <input type="hidden" name="scanned_firm">
 
         <div class="actions">
           <button type="button" id="btn-skip" class="btn">Pomiń</button>
-          <button type="button" id="btn-queue" class="btn">Kolejkuj do zapłaty</button>
+          <button type="button" id="btn-queue" class="btn" data-flow="ksef">Kolejkuj do zapłaty</button>
           <button type="submit" id="btn-confirm" class="btn btn-primary">Akceptuj</button>
         </div>
         <p id="status-msg"></p>
@@ -58,6 +103,23 @@
     </div>
   </main>
 </div>
+
+<div id="search-modal" class="modal hidden">
+  <div class="modal-backdrop" id="search-backdrop"></div>
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Szukaj w bazie</h2>
+      <button type="button" id="btn-search-close" class="btn-icon">✕</button>
+    </div>
+    <div class="search-fields">
+      <input id="search-numer" placeholder="Numer faktury">
+      <input id="search-kontrahent" placeholder="Kontrahent">
+      <button type="button" id="btn-search-run" class="btn btn-primary">Szukaj</button>
+    </div>
+    <div id="search-results"></div>
+  </div>
+</div>
+
 <script src="/app.js"></script>
 </body>
 </html>
