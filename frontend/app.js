@@ -205,8 +205,35 @@ async function selectNextAfter(processedId) {
   }
 }
 
+// oplacona/kurs_eur celowo NIE mają natywnego required w HTML: gdy pole jest
+// ukryte (display:none, bo dotyczy innej zakładki), Chrome potrafi mimo to
+// spróbować je sfocusować przy natywnej walidacji formularza i wyrzucić
+// "An invalid form control ... is not focusable" — submit event w ogóle
+// wtedy nie odpala się (przycisk "Akceptuj" wygląda jakby nic nie robił).
+// Walidacja ręczna, tylko dla pól faktycznie istotnych w bieżącej zakładce.
+function validateBeforeFinalize() {
+  if (currentFlow !== "ksef" && !field("oplacona").value) {
+    return "Wybierz, czy faktura jest opłacona.";
+  }
+  if (currentFlow === "euro") {
+    const rate = parseFloat(String(field("kurs_eur").value).replace(",", "."));
+    if (!rate || rate <= 0) {
+      return "Podaj poprawny kurs EUR/PLN.";
+    }
+  }
+  return null;
+}
+
 async function finalizeInvoice(action) {
   if (!currentId) return;
+
+  const validationError = validateBeforeFinalize();
+  if (validationError) {
+    statusMsg.textContent = validationError;
+    showToast(validationError, true);
+    return;
+  }
+
   const processedId = currentId;
   statusMsg.textContent = "Zapisywanie...";
 
