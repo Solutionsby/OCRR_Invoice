@@ -67,10 +67,6 @@ def process_file(pdf_path: Path):
 def main():
     ensure_dirs()
 
-    if not Path("settings.json").exists():
-        print("❌ BŁĄD: Brak pliku settings.json!")
-        return
-
     source_dir = source_dir_ksef()
     pdf_files = list(source_dir.glob("*.pdf"))
     if not pdf_files:

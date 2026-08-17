@@ -4,6 +4,20 @@ Roboczy plik z etapami. Odznaczamy/usuwamy pozycje na bieżąco w miarę wdraża
 weryfikowania. Pełne uzasadnienie architektury: patrz commit wiadomość / historia
 konwersacji przy pierwszym wdrożeniu tego pliku.
 
+## Poprawki po Etapie 5 (produkcja/nowy komputer)
+- [x] **Świeży checkout wywalał kontener** (`IsADirectoryError: settings.json`):
+      `settings.json`/`patterns.json` są w `.gitignore`, więc na nowym komputerze
+      fizycznie nie istnieją przy pierwszym `docker compose up` — Docker przy
+      bind mouncie pojedynczego brakującego pliku cicho tworzył zamiast niego
+      pusty katalog na hoście, co wywalało `open()` błędem `IsADirectoryError`
+      (zgłoszone z realnego Windowsa, zdiagnozowane trafnie z zewnątrz). Fix:
+      `settings.json`/`patterns.json` przeniesione do `json/` (realny, śledzony
+      przez git katalog — zawsze istnieje na świeżym checkoucie), montowany w
+      całości zamiast pojedynczych plików; `config_manager.load_settings()`
+      samo tworzy plik z domyślną zawartością, gdy brakuje. Zweryfikowane
+      lokalnie przez symulację dokładnie tego scenariusza (usunięcie obu
+      plików i rebuild) — kontener wstaje czysto, sam się „leczy".
+
 ## Etap 0 — fundament pod Dockera i wspólny kod
 - [x] `core/paths.py`: `BASE_PATH` z env var `INVOICES_BASE_PATH` (pierwszeństwo, do
       Dockera), fallback na dzisiejszą logikę `platform.system()` dla CLI bez kontenera

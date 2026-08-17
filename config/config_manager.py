@@ -2,16 +2,42 @@ import json
 from pathlib import Path
 
 
-SETTINGS_FILE = Path("settings.json")
-PATTERNS_FILE = Path("patterns.json")
+# Wewnątrz json/ (nie w katalogu głównym) celowo — json/ jest realnym,
+# śledzonym przez git katalogiem (ma już knowledge_base.json/dzial_kategoria.json),
+# więc bind mount w Dockerze zawsze montuje istniejący katalog. settings.json
+# i patterns.json są w .gitignore (dane per-instalacja) — na świeżym
+# checkoucie repo (nowy komputer) fizycznie nie istnieją, a Docker przy
+# montowaniu POJEDYNCZEGO brakującego pliku cicho tworzy zamiast niego pusty
+# katalog na hoście, co potem wywala open() z IsADirectoryError. Montując
+# tylko katalog json/ i tworząc te pliki od środka (przez Pythona, gdy
+# brakuje), ten problem znika całkowicie.
+CONFIG_DIR = Path("json")
+SETTINGS_FILE = CONFIG_DIR / "settings.json"
+PATTERNS_FILE = CONFIG_DIR / "patterns.json"
+
+DEFAULT_SETTINGS = {
+    "email_config": {
+        "smtp_port": 465,
+        "days_window": 7,
+        "recipients": [],
+    }
+}
 
 def load_settings():
-    """Wczytuje listę działów tylko i wyłącznie z settings.json."""
+    """
+    Wczytuje settings.json. Jeśli jeszcze nie istnieje (świeży checkout na
+    nowym komputerze), tworzy go z domyślną zawartością zamiast wywalać
+    błędem — inaczej cała aplikacja (CLI i API) nie startuje w ogóle.
+    """
+    if not SETTINGS_FILE.exists():
+        save_settings(DEFAULT_SETTINGS)
+        return dict(DEFAULT_SETTINGS)
     with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def save_settings(settings):
     """Zapisuje settings.json (np. politykę mailera edytowaną z przeglądarki)."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(settings, f, indent=4, ensure_ascii=False)
 
@@ -24,6 +50,7 @@ def load_patterns():
 
 def save_patterns(patterns):
     """Zapisuje aktualną wiedzę o firmach/aliasach do patterns.json."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     with open(PATTERNS_FILE, "w", encoding="utf-8") as f:
         json.dump(patterns, f, indent=4, ensure_ascii=False)
 
