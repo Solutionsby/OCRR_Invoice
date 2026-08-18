@@ -314,6 +314,35 @@ function recomputeFromRate() {
 }
 field("kurs_eur").addEventListener("input", recomputeFromRate);
 
+// Numer faktury odczytany przez OCR jest sprawdzony pod kątem duplikatu raz,
+// przy otwarciu faktury (patrz duplicate_matches w selectInvoice) — ale gdy
+// operator ręcznie poprawi numer (częste dla faktur spoza KSeF, gorzej
+// rozpoznawanych przez OCR), ten pierwotny odczyt już nie jest aktualny.
+// "blur" (a nie "input") celowo — sprawdzamy dopiero gdy operator skończy
+// wpisywać, nie przy każdym znaku.
+async function recheckDuplicateOnBlur() {
+  const idAtBlur = currentId;
+  const numer = field("invoice_number").value.trim();
+  if (!numer) {
+    showDuplicateWarning([]);
+    return;
+  }
+  try {
+    const res = await fetch(`/api/search/duplicates?numer=${encodeURIComponent(numer)}`);
+    if (!res.ok) return;
+    const matches = await res.json();
+    // Operator mógł w międzyczasie przełączyć się na inną fakturę (blur
+    // odpala się też przy kliknięciu innej pozycji na liście) — nieaktualna
+    // odpowiedź nie może nadpisać ostrzeżenia już pokazanego dla nowej.
+    if (currentId !== idAtBlur) return;
+    showDuplicateWarning(matches);
+  } catch {
+    // Cichy błąd sieci — nie blokuje pracy operatora, ostrzeżenie po prostu
+    // nie odświeży się do następnej okazji (kolejny blur albo wybór faktury).
+  }
+}
+field("invoice_number").addEventListener("blur", recheckDuplicateOnBlur);
+
 document.getElementById("btn-skip").addEventListener("click", skipInvoice);
 document.getElementById("btn-queue").addEventListener("click", () => finalizeInvoice("k"));
 form.addEventListener("submit", (e) => {
@@ -464,244 +493,6 @@ document.getElementById("btn-search-run").addEventListener("click", runSearch);
     if (e.key === "Enter") runSearch();
   });
 });
-
-// --- Wysyłka przypomnień o płatnościach (polityka + podgląd + trigger) ---
-
-const mailerModal = document.getElementById("mailer-modal");
-const mailerDaysWindow = document.getElementById("mailer-days-window");
-const mailerRecipients = document.getElementById("mailer-recipients");
-const mailerStatus = document.getElementById("mailer-status");
-const mailerPendingEl = document.getElementById("mailer-pending");
-const mailerHistoryEl = document.getElementById("mailer-history");
-const mailerSelectedCount = document.getElementById("mailer-selected-count");
-const btnMailerSend = document.getElementById("btn-mailer-send");
-
-const PENDING_COLUMNS = [
-  { key: "payment_date", label: "Termin" },
-  { key: "firm_name", label: "Kontrahent" },
-  { key: "invoice_number", label: "Numer" },
-  { key: "brutto", label: "Kwota", numeric: true },
-];
-
-let mailerPendingData = [];
-let mailerSelectedIds = new Set();
-let mailerSort = { column: "payment_date", direction: 1 };
-
-async function openMailer() {
-  mailerModal.classList.remove("hidden");
-  mailerStatus.textContent = "";
-  await loadMailerPolicy();
-  await refreshMailerPending();
-  await loadMailerHistory();
-}
-
-function closeMailer() {
-  mailerModal.classList.add("hidden");
-}
-
-async function loadMailerPolicy() {
-  const res = await fetch("/api/mailer/policy");
-  const policy = await res.json();
-  mailerDaysWindow.value = policy.days_window;
-  mailerRecipients.value = policy.recipients.join(", ");
-}
-
-async function saveMailerPolicy() {
-  const days_window = parseInt(mailerDaysWindow.value, 10) || 0;
-  const recipients = mailerRecipients.value
-    .split(",")
-    .map((r) => r.trim())
-    .filter(Boolean);
-  const res = await fetch("/api/mailer/policy", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ days_window, recipients }),
-  });
-  if (!res.ok) {
-    mailerStatus.textContent = "Błąd zapisu polityki: " + (await res.text());
-    return;
-  }
-  mailerStatus.textContent = "Zapisano politykę.";
-  await refreshMailerPending();
-}
-
-function updateMailerSelectedCount() {
-  mailerSelectedCount.textContent = mailerSelectedIds.size;
-  btnMailerSend.disabled = mailerSelectedIds.size === 0;
-}
-
-function sortedMailerPending() {
-  const { column, direction } = mailerSort;
-  return [...mailerPendingData].sort((a, b) => {
-    const va = a[column];
-    const vb = b[column];
-    if (typeof va === "number" && typeof vb === "number") {
-      return (va - vb) * direction;
-    }
-    return String(va || "").localeCompare(String(vb || ""), "pl", { sensitivity: "base", numeric: true }) * direction;
-  });
-}
-
-function renderMailerPending() {
-  mailerPendingEl.innerHTML = "";
-  if (mailerPendingData.length === 0) {
-    const p = document.createElement("p");
-    p.className = "muted";
-    p.textContent = "Brak faktur pasujących do bieżącego okna dni.";
-    mailerPendingEl.appendChild(p);
-    updateMailerSelectedCount();
-    return;
-  }
-
-  const table = document.createElement("table");
-  table.className = "pending-table";
-
-  const thead = document.createElement("thead");
-  const headRow = document.createElement("tr");
-
-  const selectAllTh = document.createElement("th");
-  const selectAllCb = document.createElement("input");
-  selectAllCb.type = "checkbox";
-  selectAllCb.checked = mailerSelectedIds.size === mailerPendingData.length;
-  selectAllCb.addEventListener("change", () => {
-    mailerSelectedIds = selectAllCb.checked ? new Set(mailerPendingData.map((p) => p.id)) : new Set();
-    renderMailerPending();
-  });
-  selectAllTh.appendChild(selectAllCb);
-  headRow.appendChild(selectAllTh);
-
-  for (const col of PENDING_COLUMNS) {
-    const th = document.createElement("th");
-    th.className = "sortable" + (col.numeric ? " numeric" : "");
-    th.dataset.column = col.key;
-    let label = col.label;
-    if (mailerSort.column === col.key) {
-      label += mailerSort.direction === 1 ? " ▲" : " ▼";
-    }
-    th.textContent = label;
-    headRow.appendChild(th);
-  }
-  thead.appendChild(headRow);
-  table.appendChild(thead);
-
-  const tbody = document.createElement("tbody");
-  for (const item of sortedMailerPending()) {
-    const tr = document.createElement("tr");
-
-    const cbTd = document.createElement("td");
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = mailerSelectedIds.has(item.id);
-    cb.addEventListener("change", () => {
-      if (cb.checked) mailerSelectedIds.add(item.id);
-      else mailerSelectedIds.delete(item.id);
-      updateMailerSelectedCount();
-    });
-    cbTd.appendChild(cb);
-    tr.appendChild(cbTd);
-
-    for (const col of PENDING_COLUMNS) {
-      const td = document.createElement("td");
-      if (col.numeric) td.classList.add("numeric");
-      const value = item[col.key];
-      td.textContent = col.numeric ? Number(value).toFixed(2) + " zł" : value;
-      tr.appendChild(td);
-    }
-    tbody.appendChild(tr);
-  }
-  table.appendChild(tbody);
-  mailerPendingEl.appendChild(table);
-  updateMailerSelectedCount();
-}
-
-mailerPendingEl.addEventListener("click", (e) => {
-  const th = e.target.closest("th[data-column]");
-  if (!th) return;
-  const column = th.dataset.column;
-  if (mailerSort.column === column) {
-    mailerSort.direction *= -1;
-  } else {
-    mailerSort.column = column;
-    mailerSort.direction = 1;
-  }
-  renderMailerPending();
-});
-
-async function refreshMailerPending() {
-  const daysWindow = parseInt(mailerDaysWindow.value, 10);
-  const params = new URLSearchParams();
-  if (!Number.isNaN(daysWindow)) params.set("days_window", daysWindow);
-  const res = await fetch(`/api/mailer/pending?${params}`);
-  if (!res.ok) {
-    mailerStatus.textContent = "Błąd: " + (await res.text());
-    return;
-  }
-  mailerPendingData = await res.json();
-  // Domyślnie zaznaczamy wszystko — operator odznacza to, czego NIE chce
-  // wysłać teraz (najczęstszy przypadek to "wyślij wszystko z listy").
-  mailerSelectedIds = new Set(mailerPendingData.map((p) => p.id));
-  renderMailerPending();
-}
-
-async function loadMailerHistory() {
-  const res = await fetch("/api/mailer/history?limit=20");
-  const items = await res.json();
-  mailerHistoryEl.innerHTML = "";
-  if (items.length === 0) {
-    const p = document.createElement("p");
-    p.className = "muted";
-    p.textContent = "Brak historii wysyłek.";
-    mailerHistoryEl.appendChild(p);
-    return;
-  }
-  const table = document.createElement("table");
-  table.className = "pending-table";
-  const thead = document.createElement("thead");
-  thead.innerHTML = "<tr><th>Wysłano</th><th>Kontrahent</th><th>Numer</th><th class=\"numeric\">Kwota</th></tr>";
-  table.appendChild(thead);
-  const tbody = document.createElement("tbody");
-  for (const item of items) {
-    const tr = document.createElement("tr");
-    const cells = [item.sent_at || "", item.firm_name, item.invoice_number, Number(item.brutto).toFixed(2) + " zł"];
-    cells.forEach((value, i) => {
-      const td = document.createElement("td");
-      if (i === 3) td.classList.add("numeric");
-      td.textContent = value;
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  }
-  table.appendChild(tbody);
-  mailerHistoryEl.appendChild(table);
-}
-
-async function sendSelectedPayments() {
-  if (mailerSelectedIds.size === 0) return;
-  mailerStatus.textContent = "Wysyłanie...";
-  btnMailerSend.disabled = true;
-  const res = await fetch("/api/mailer/send", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids: [...mailerSelectedIds] }),
-  });
-  const result = await res.json();
-  if (!res.ok || !result.sent) {
-    mailerStatus.textContent = "Błąd wysyłki: " + (result.error || (await res.text()));
-    updateMailerSelectedCount();
-    return;
-  }
-  mailerStatus.textContent = `Wysłano raport z ${result.count} fakturami do: ${result.recipients.join(", ")}.`
-    + (result.missing_files.length ? ` Uwaga — brakujące pliki: ${result.missing_files.length}.` : "");
-  await refreshMailerPending();
-  await loadMailerHistory();
-}
-
-document.getElementById("btn-mailer-toggle").addEventListener("click", openMailer);
-document.getElementById("btn-mailer-close").addEventListener("click", closeMailer);
-document.getElementById("mailer-backdrop").addEventListener("click", closeMailer);
-document.getElementById("btn-mailer-save-policy").addEventListener("click", saveMailerPolicy);
-document.getElementById("btn-mailer-refresh").addEventListener("click", refreshMailerPending);
-document.getElementById("btn-mailer-send").addEventListener("click", sendSelectedPayments);
 
 // --- Foldery źródłowe/docelowe (przeglądarka podfolderów zamontowanego katalogu) ---
 

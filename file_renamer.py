@@ -4,6 +4,18 @@ from extracters.extract_firm_name import extract_firm_name
 from extracters.extract_invoice_date import extract_invoice_date
 from extracters.extract_invoice_number import extract_invoice_number
 
+
+def sanitize_invoice_number(invoice_number) -> str:
+    """
+    Ta sama reguła, którą rename_file() stosuje do numeru faktury przy
+    budowaniu nazwy pliku (MM_YYYY_FV_Numer_Firma.pdf) — wydzielona, żeby
+    core/monthly_report.py mogło dopasować wiersze FAKTURY_KOSZTOWE do
+    plików PDF po nazwie, bez duplikowania (i ewentualnego rozjechania się)
+    tej samej logiki czyszczenia znaków.
+    """
+    return str(invoice_number).replace("/", "_").replace("\\", "_").replace(" ", "_").replace(":", "_")
+
+
 def rename_file(original_path: Path, extracted_text: str, manual_num=None, manual_firm=None, manual_date=None):
     base_dir = original_path.parent
     
@@ -31,9 +43,9 @@ def rename_file(original_path: Path, extracted_text: str, manual_num=None, manua
 
     # 3. Pobieranie Numeru
     invoice_number = manual_num if manual_num else extract_invoice_number(extracted_text, firm_name)
-    
+
     # Czyszczenie nazw do bezpiecznego zapisu pliku (usuwanie znaków zakazanych w Windows/Mac)
-    safe_num = str(invoice_number).replace("/", "_").replace("\\", "_").replace(" ", "_").replace(":", "_")
+    safe_num = sanitize_invoice_number(invoice_number)
     safe_firm = str(firm_name).replace(" ", "_").replace(".", "").replace('"', "")
 
     # Nowa nazwa: MM_YYYY_FV_Numer_Firma.pdf

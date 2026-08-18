@@ -1,6 +1,23 @@
 from utils.date_utils import try_parse_date
+from utils import database_manager as db
 from extracters.extract_payment_info import is_paid
 from extracters.inne.amounts import parse_number
+
+
+def _warn_if_duplicate(numer):
+    """
+    Numer odczytany przez OCR jest sprawdzony pod kątem duplikatu raz, przed
+    prezentacją propozycji (analyze_ksef/analyze_inne/analyze_euro) — gdy
+    operator go tu ręcznie poprawi, ten pierwotny odczyt już nie jest
+    aktualny, więc sprawdzamy ponownie na nowej wartości.
+    """
+    matches = db.find_duplicates(numer)
+    if not matches:
+        return
+    print(f"   ⚠️ Możliwy duplikat — numer '{numer}' już jest w bazie:")
+    for m in matches:
+        plik = f" — {m['plik'].split('/')[-1]}" if m.get("plik") else ""
+        print(f"      {m['tabela']}: {m['kontrahent']}{plik}")
 
 def ask_payment_status_decision(firm, num, date, pay_date, payment_form, brutto):
     """
@@ -130,6 +147,8 @@ def get_manual_corrections(proposed_firm, num, date, pay_date, payment_status, p
                     print("   ⚠️ Błędna liczba!")
             else:
                 data[field] = user_input
+                if field == "num":
+                    _warn_if_duplicate(data[field])
 
         current_step += 1
 
@@ -286,6 +305,8 @@ def get_manual_corrections_inne(data):
                 current[field] = parse_number(user_input)
             else:
                 current[field] = user_input
+                if field == "num":
+                    _warn_if_duplicate(current[field])
 
         step += 1
 

@@ -251,6 +251,52 @@ def search_invoices(numer="", kontrahent=""):
     finally:
         conn.close()
 
+def get_kosztowe_by_month(year, month):
+    """
+    Wiersze widoku Faktury.dbo.Faktury_Kosztowe_Zmapowane za dany miesiąc
+    (Data_Wystwawienia) — źródło podsumowania Excel dla comiesięcznej pełnej
+    paczki mailera (i raportu właściciela, patrz core/monthly_report.py).
+    Ten widok ma dokładnie te same wiersze co FAKTURY_KOSZTOWE (zweryfikowane
+    live: identyczna liczba wierszy i suma za czerwiec 2026), plus kolumnę
+    `dzial_docelowy` — zmapowany, dużo krótszy zestaw działów (9 zamiast 20
+    surowych wartości `Dzial`, np. "RDS DRUK"/"KI DRUK" składają się w jeden
+    "RDS"/"Konrad") — właśnie ten podział ma sens dla raportu właściciela.
+    Obejmuje wszystkie rodzaje faktur: KSeF (zewnętrznym kanałem, poza tym
+    narzędziem) oraz "inne"/EUR (zapisywane wprost przez core/inne.py i
+    core/euro.py), więc nie trzeba osobno odpytywać FAKTURY_DO_ZAPLATY.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT Nazwa_Kontrahenta, Numer_Faktury, Data_Wystwawienia, Kwota_Netto, Kwota_Vat, dzial_docelowy "
+            "FROM Faktury_Kosztowe_Zmapowane WHERE YEAR(Data_Wystwawienia) = ? AND MONTH(Data_Wystwawienia) = ? "
+            "ORDER BY Data_Wystwawienia, Nazwa_Kontrahenta",
+            (year, month),
+        )
+        results = []
+        for row in cursor.fetchall():
+            netto = float(row.Kwota_Netto) if row.Kwota_Netto is not None else 0.0
+            vat = float(row.Kwota_Vat) if row.Kwota_Vat is not None else 0.0
+            data_wyst = row.Data_Wystwawienia
+            results.append({
+                "firm_name": row.Nazwa_Kontrahenta,
+                "invoice_number": row.Numer_Faktury,
+                "invoice_date": data_wyst.strftime("%Y-%m-%d") if hasattr(data_wyst, "strftime") else str(data_wyst or ""),
+                "netto": netto,
+                "vat": vat,
+                "dzial": (row.dzial_docelowy or "").strip() or "(brak działu)",
+            })
+        return results
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (get_kosztowe_by_month): {e}")
+        return []
+    finally:
+        conn.close()
+
+
 # --- FUNKCJE DLA SKRYPTU MAIL_SENDER.PY ---
 
 def mark_as_sent(id_list):

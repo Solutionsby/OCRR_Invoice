@@ -56,6 +56,12 @@ body {
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
+  /* .btn-icon jest też użyty na <a> (np. link do /mailer.html) — bez tego
+     przeglądarka narzuciłaby domyślny niebieski/podkreślony styl linku. */
+  color: var(--text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 
 .flow-tabs {
@@ -282,6 +288,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* Bez tego treść, która przekracza max-height (np. mailer-modal po
+     dodaniu kolejnych sekcji), po prostu wylewa się poza panel bez
+     możliwości przewinięcia — realny bug, nie tylko zabezpieczenie. */
+  overflow-y: auto;
 }
 
 .modal-header {
@@ -392,8 +402,40 @@ body {
 
 .mailer-policy-fields {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: 8px;
+}
+
+.mailer-monthly-block {
+  margin-top: 12px;
+}
+
+.mailer-monthly-block h4 {
+  font-size: 12px;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.dzial-breakdown-table {
+  width: 100%;
+  max-width: 480px;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.dzial-breakdown-table th,
+.dzial-breakdown-table td {
+  text-align: left;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dzial-breakdown-table th:not(:first-child),
+.dzial-breakdown-table td:not(:first-child) {
+  text-align: right;
 }
 
 .mailer-policy-fields label {
@@ -549,4 +591,107 @@ body {
   flex: 1;
   padding: 8px;
   font-size: 12px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* --- Mailer: osobna podstrona (frontend/mailer.html) --- */
+
+.mailer-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.mailer-page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mailer-page-header a.btn-icon {
+  text-decoration: none;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.mailer-page-header h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.mailer-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.mailer-tab {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mailer-tab.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.mailer-content {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.mailer-tab-panel {
+  display: none;
+}
+
+.mailer-tab-panel.active {
+  display: block;
+}
+
+.mailer-content .mailer-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+#kontrahent-select {
+  font-size: 13px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  width: 100%;
+}
+
+#kontrahent-filter {
+  margin-bottom: 4px;
+}
+
+.mailer-checkbox-field {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px !important;
+}
+
+.mailer-checkbox-field input[type="checkbox"] {
+  width: auto;
 }

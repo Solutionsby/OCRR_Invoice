@@ -130,6 +130,7 @@ class FinalizeRequestEuro(BaseModel):
 class MailerPolicy(BaseModel):
     days_window: int
     recipients: list[str]
+    owner_recipients: list[str] = []
 
 
 class PendingPayment(BaseModel):
@@ -158,6 +159,86 @@ class SendResult(BaseModel):
     recipients: list[str]
     missing_files: list[str]
     error: str | None = None
+
+
+class MonthlyPreview(BaseModel):
+    year: int
+    month: int
+    invoice_count: int
+    total_brutto: float
+    attachment_count: int
+    attachments: list[str]
+
+
+class MonthlySendRequest(BaseModel):
+    year: int
+    month: int
+
+
+class MonthlySendResult(BaseModel):
+    sent: bool
+    count: int
+    attachment_count: int
+    recipients: list[str]
+    missing_files: list[str]
+    error: str | None = None
+
+
+class DzialBreakdownItem(BaseModel):
+    dzial: str
+    count: int
+    brutto: float
+
+
+class OwnerPreview(BaseModel):
+    year: int
+    month: int
+    invoice_count: int
+    total_brutto: float
+    breakdown: list[DzialBreakdownItem]
+
+
+class OwnerSendResult(BaseModel):
+    sent: bool
+    count: int
+    recipients: list[str]
+    error: str | None = None
+
+
+class DzialPreview(BaseModel):
+    dzial: str
+    invoice_count: int
+    total_brutto: float
+    attachment_count: int
+    attachments: list[str]
+
+
+class DzialSendRequest(BaseModel):
+    year_from: int
+    month_from: int
+    year_to: int
+    month_to: int
+    dzial: str
+    recipients: list[str]
+    with_pdfs: bool = True
+
+
+class KontrahentPreview(BaseModel):
+    kontrahent: str
+    invoice_count: int
+    total_brutto: float
+    attachment_count: int
+    attachments: list[str]
+
+
+class KontrahentSendRequest(BaseModel):
+    year_from: int
+    month_from: int
+    year_to: int
+    month_to: int
+    kontrahent: str
+    recipients: list[str]
+    with_pdfs: bool = True
 
 
 class FolderConfig(BaseModel):

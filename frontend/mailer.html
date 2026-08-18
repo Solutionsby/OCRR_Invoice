@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mailer — OCRR Invoice</title>
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div id="toast" class="toast hidden"></div>
+
+<div class="mailer-page">
+  <header class="mailer-page-header">
+    <a href="/" class="btn-icon" title="Powrót do faktur">← Faktury</a>
+    <h1>Mailer</h1>
+  </header>
+
+  <nav class="mailer-tabs">
+    <button type="button" class="mailer-tab active" data-tab="reminders">Przypomnienia</button>
+    <button type="button" class="mailer-tab" data-tab="package">Pełna paczka</button>
+    <button type="button" class="mailer-tab" data-tab="owner">Raport właściciela</button>
+    <button type="button" class="mailer-tab" data-tab="dzial">Wg działu</button>
+    <button type="button" class="mailer-tab" data-tab="kontrahent">Wg kontrahenta</button>
+    <button type="button" class="mailer-tab" data-tab="settings">Ustawienia</button>
+  </nav>
+
+  <main class="mailer-content">
+
+    <section id="tab-reminders" class="mailer-tab-panel active">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Faktury do zapłaty — pasujące do bieżącej polityki</h3>
+          <div class="mailer-section-actions">
+            <button type="button" id="btn-mailer-refresh" class="btn">Odśwież</button>
+            <button type="button" id="btn-mailer-send" class="btn btn-primary" disabled>
+              Wyślij zaznaczone (<span id="mailer-selected-count">0</span>)
+            </button>
+          </div>
+        </div>
+        <p class="muted">Okno dni i odbiorcy: zakładka „Ustawienia”.</p>
+        <p id="mailer-status"></p>
+        <div id="mailer-pending"></div>
+      </div>
+
+      <div class="mailer-section">
+        <h3>Historia wysyłek</h3>
+        <div id="mailer-history"></div>
+      </div>
+    </section>
+
+    <section id="tab-package" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <h3>Pełna paczka (księgowość) — wszystkie PDF-y + Excel</h3>
+        <p class="muted">Excel obejmuje tylko pozycje, dla których jest odpowiadający PDF. Odbiorcy: zakładka „Ustawienia” (ta sama lista co przypomnienia).</p>
+        <div class="mailer-policy-fields">
+          <label>Miesiąc
+            <input id="package-month" type="month">
+          </label>
+          <button type="button" id="btn-package-preview" class="btn">Podgląd</button>
+          <button type="button" id="btn-package-send" class="btn btn-primary" disabled>Wyślij paczkę</button>
+        </div>
+        <p id="package-status"></p>
+        <div id="package-preview"></div>
+      </div>
+    </section>
+
+    <section id="tab-owner" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <h3>Raport właściciela — tylko Excel, z podziałem na Dział</h3>
+        <p class="muted">Obejmuje wszystkie pozycje za miesiąc (niezależnie od tego, czy jest PDF) — raport zarządczy, nie komplet dokumentów. Odbiorcy: zakładka „Ustawienia”.</p>
+        <div class="mailer-policy-fields">
+          <label>Miesiąc
+            <input id="owner-month" type="month">
+          </label>
+          <button type="button" id="btn-owner-preview" class="btn">Podgląd</button>
+          <button type="button" id="btn-owner-send" class="btn btn-primary" disabled>Wyślij raport właściciela</button>
+        </div>
+        <p id="owner-status"></p>
+        <div id="owner-preview"></div>
+      </div>
+    </section>
+
+    <section id="tab-dzial" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <h3>Raport wg działu</h3>
+        <p class="muted">Odbiorców podajesz ręcznie przy każdej wysyłce. Okno „Od”–„Do” może obejmować dowolną liczbę miesięcy (i lat) — jeden miesiąc to okno, gdzie „Od” i „Do” są takie same.</p>
+        <div class="mailer-policy-fields">
+          <label>Od
+            <input id="dzial-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="dzial-month-to" type="month">
+          </label>
+          <label>Dział
+            <select id="dzial-select"><option value="">— wybierz okno —</option></select>
+          </label>
+          <label class="mailer-checkbox-field">
+            <input id="dzial-with-pdfs" type="checkbox" checked>
+            Dołącz PDF-y
+          </label>
+          <label class="mailer-recipients-field">Odbiorcy (po przecinku)
+            <input id="dzial-recipients" type="text" placeholder="a@firma.pl, b@firma.pl">
+          </label>
+          <button type="button" id="btn-dzial-preview" class="btn">Podgląd</button>
+          <button type="button" id="btn-dzial-send" class="btn btn-primary" disabled>Wyślij raport działu</button>
+        </div>
+        <p id="dzial-status"></p>
+        <div id="dzial-preview"></div>
+      </div>
+    </section>
+
+    <section id="tab-kontrahent" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <h3>Raport wg kontrahenta</h3>
+        <p class="muted">Odbiorców podajesz ręcznie przy każdej wysyłce. Okno „Od”–„Do” może obejmować dowolną liczbę miesięcy (i lat).</p>
+        <div class="mailer-policy-fields">
+          <label>Od
+            <input id="kontrahent-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="kontrahent-month-to" type="month">
+          </label>
+          <label class="mailer-recipients-field">Kontrahent
+            <input id="kontrahent-filter" type="text" placeholder="Filtruj listę...">
+            <select id="kontrahent-select" size="6"><option value="">— wybierz okno —</option></select>
+          </label>
+          <label class="mailer-checkbox-field">
+            <input id="kontrahent-with-pdfs" type="checkbox" checked>
+            Dołącz PDF-y
+          </label>
+          <label class="mailer-recipients-field">Odbiorcy (po przecinku)
+            <input id="kontrahent-recipients" type="text" placeholder="a@firma.pl, b@firma.pl">
+          </label>
+          <button type="button" id="btn-kontrahent-preview" class="btn">Podgląd</button>
+          <button type="button" id="btn-kontrahent-send" class="btn btn-primary" disabled>Wyślij raport kontrahenta</button>
+        </div>
+        <p id="kontrahent-status"></p>
+        <div id="kontrahent-preview"></div>
+      </div>
+    </section>
+
+    <section id="tab-settings" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <h3>Polityka przypomnień i odbiorcy</h3>
+        <div class="mailer-policy-fields">
+          <label>Okno dni (±)
+            <input id="mailer-days-window" type="number" min="0" step="1">
+          </label>
+          <label class="mailer-recipients-field">Odbiorcy przypomnień i pełnej paczki (po przecinku)
+            <input id="mailer-recipients" type="text" placeholder="a@firma.pl, b@firma.pl">
+          </label>
+          <label class="mailer-recipients-field">Odbiorcy raportu właściciela (po przecinku)
+            <input id="mailer-owner-recipients" type="text" placeholder="wlasciciel@firma.pl">
+          </label>
+          <button type="button" id="btn-mailer-save-policy" class="btn btn-primary">Zapisz</button>
+        </div>
+        <p id="settings-status"></p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="/mailer.js"></script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import os
 import platform
+import re
 from pathlib import Path
 
 from config import config_manager as cfg
@@ -130,6 +131,29 @@ def get_folders_resolved() -> list:
                 "exists": False,
             })
     return result
+
+
+def find_month_pdfs(year: int, month: int) -> list:
+    """
+    Wszystkie PDF-y danego miesiąca do comiesięcznej pełnej paczki mailera:
+    zarówno już zarchiwizowane (dest_dir()/MM/Firma), jak i wciąż czekające
+    na zapłatę w payment_dir() (nie przeszły jeszcze przez cotygodniowy
+    mailer przypomnień, patrz core/mailer.py). Filtrujemy po pełnym
+    prefiksie "MM_YYYY_" z nazwy pliku — folder archiwum grupuje tylko po
+    numerze miesiąca bez roku, więc sama nazwa folderu nie odróżnia lat.
+    """
+    prefix = f"{month:02d}_{year}_"
+    results = []
+
+    archive_month_dir = dest_dir() / f"{month:02d}"
+    if archive_month_dir.is_dir():
+        results.extend(p for p in archive_month_dir.rglob("*.pdf") if p.name.startswith(prefix))
+
+    pending_dir = payment_dir()
+    if pending_dir.is_dir():
+        results.extend(p for p in pending_dir.glob("*.pdf") if p.name.startswith(prefix))
+
+    return sorted(results)
 
 
 def list_subfolders(relative: str = "") -> list:

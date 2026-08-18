@@ -48,6 +48,24 @@ def _archive_paid_invoice(pdf_path: Path, firm_name: str) -> Path:
     return target_path
 
 
+def send_via_smtp(msg: EmailMessage, smtp_port: int) -> None:
+    """
+    Łączy się i wysyła gotowy EmailMessage — wydzielone z _build_and_send, żeby
+    core/monthly_report.py (pełna paczka miesięczna) mogło użyć tej samej
+    logiki logowania SMTP bez duplikowania jej.
+    """
+    smtp_server = os.getenv('SMTP_SERVER')
+    if smtp_port == 465:
+        server_conn = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=60)
+    else:
+        server_conn = smtplib.SMTP(smtp_server, smtp_port, timeout=60)
+        server_conn.starttls()
+
+    with server_conn as server:
+        server.login(os.getenv('SENDER'), os.getenv("EMAIL_PASSWORD"))
+        server.send_message(msg)
+
+
 def _build_and_send(payments: list, recipients: list) -> dict:
     """
     Buduje jeden zbiorczy mail HTML dla podanych pozycji (z załącznikami PDF),
@@ -174,20 +192,10 @@ def _build_and_send(payments: list, recipients: list) -> dict:
 
     # --- WYSYŁKA ---
     try:
-        smtp_server = os.getenv('SMTP_SERVER')
         smtp_port = int(conf.get('smtp_port', 587))
 
         print(f"⏳ Wysyłanie raportu HTML do {recipient_str}...")
-
-        if smtp_port == 465:
-            server_conn = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=60)
-        else:
-            server_conn = smtplib.SMTP(smtp_server, smtp_port, timeout=60)
-            server_conn.starttls()
-
-        with server_conn as server:
-            server.login(os.getenv('SENDER'), os.getenv("EMAIL_PASSWORD"))
-            server.send_message(msg)
+        send_via_smtp(msg, smtp_port)
 
         print(f"✅ SUKCES: Raport HTML wysłany!")
         result["sent"] = True
