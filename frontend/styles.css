@@ -695,3 +695,15 @@ body {
 .mailer-checkbox-field input[type="checkbox"] {
   width: auto;
 }
+
+/* --- Analityka: kontenery wykresów Chart.js --- */
+
+.an-chart-box {
+  position: relative;
+  height: 320px;
+  margin: 12px 0;
+}
+
+.an-chart-box-tall {
+  height: 420px;
+}

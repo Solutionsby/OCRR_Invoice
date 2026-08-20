@@ -1,5 +1,6 @@
 import pyodbc
 import os
+from datetime import date
 from dotenv import load_dotenv
 from decimal import Decimal
 load_dotenv()
@@ -292,6 +293,215 @@ def get_kosztowe_by_month(year, month):
         return results
     except Exception as e:
         print(f"❌ BŁĄD SQL (get_kosztowe_by_month): {e}")
+        return []
+    finally:
+        conn.close()
+
+
+# --- ANALITYKA (widok Faktury_Kosztowe_Zmapowane, agregacje po stronie SQL) ---
+
+def _month_range_bounds(year_from, month_from, year_to, month_to):
+    """
+    (data_od, data_do_wyłącznie) dla zakresu miesięcy — tolerancyjne na
+    odwrócony zakres (od > do), tak samo jak core/monthly_report.py, żeby
+    obie warstwy zgadzały się co do znaczenia "od"/"do". Górna granica jest
+    wyłączna (< data_do), żeby uniknąć zależności od funkcji SQL
+    EOMONTH/DATEADD po stronie zapytania.
+    """
+    start = year_from * 12 + (month_from - 1)
+    end = year_to * 12 + (month_to - 1)
+    if end < start:
+        start, end = end, start
+    date_from = date(start // 12, start % 12 + 1, 1)
+    end_y, end_m = end // 12, end % 12 + 1
+    date_to = date(end_y + 1, 1, 1) if end_m == 12 else date(end_y, end_m + 1, 1)
+    return date_from, date_to
+
+
+def get_spend_trend(year_from, month_from, year_to, month_to):
+    """Suma netto/VAT/liczba faktur per rok-miesiąc w zadanym oknie —
+    źródło wykresu trendu kosztów w czasie (zakładka „Trend” analityki)."""
+    date_from, date_to = _month_range_bounds(year_from, month_from, year_to, month_to)
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT YEAR(Data_Wystwawienia) AS yr, MONTH(Data_Wystwawienia) AS mo, "
+            "SUM(Kwota_Netto) AS netto, SUM(Kwota_Vat) AS vat, COUNT(*) AS cnt "
+            "FROM Faktury_Kosztowe_Zmapowane "
+            "WHERE Data_Wystwawienia >= ? AND Data_Wystwawienia < ? "
+            "GROUP BY YEAR(Data_Wystwawienia), MONTH(Data_Wystwawienia) "
+            "ORDER BY yr, mo",
+            (date_from, date_to),
+        )
+        results = []
+        for row in cursor.fetchall():
+            netto = float(row.netto) if row.netto is not None else 0.0
+            vat = float(row.vat) if row.vat is not None else 0.0
+            results.append({
+                "year": row.yr, "month": row.mo,
+                "netto": round(netto, 2), "vat": round(vat, 2),
+                "brutto": round(netto + vat, 2), "count": row.cnt,
+            })
+        return results
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (get_spend_trend): {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def get_top_kontrahenci(year_from, month_from, year_to, month_to, limit=15, dzial=None):
+    """Ranking kontrahentów wg sumy brutto w oknie + suma całkowita okresu
+    (do liczenia % udziału, także dla kontrahentów spoza TOP N). Opcjonalny
+    filtr dzial_docelowy — "kto najwięcej kosztuje w tym dziale"."""
+    date_from, date_to = _month_range_bounds(year_from, month_from, year_to, month_to)
+    conn = get_db_connection()
+    if not conn:
+        return [], 0.0
+    try:
+        cursor = conn.cursor()
+        where = "WHERE Data_Wystwawienia >= ? AND Data_Wystwawienia < ?"
+        params = [date_from, date_to]
+        if dzial:
+            where += " AND dzial_docelowy = ?"
+            params.append(dzial)
+
+        cursor.execute(
+            f"SELECT SUM(ISNULL(Kwota_Netto,0) + ISNULL(Kwota_Vat,0)) AS brutto "
+            f"FROM Faktury_Kosztowe_Zmapowane {where}",
+            params,
+        )
+        total_row = cursor.fetchone()
+        total_brutto = float(total_row.brutto) if total_row and total_row.brutto is not None else 0.0
+
+        cursor.execute(
+            f"SELECT TOP (?) Nazwa_Kontrahenta, SUM(ISNULL(Kwota_Netto,0) + ISNULL(Kwota_Vat,0)) AS brutto, COUNT(*) AS cnt "
+            f"FROM Faktury_Kosztowe_Zmapowane {where} "
+            "GROUP BY Nazwa_Kontrahenta "
+            "ORDER BY brutto DESC",
+            [limit, *params],
+        )
+        items = []
+        for row in cursor.fetchall():
+            brutto = float(row.brutto) if row.brutto is not None else 0.0
+            items.append({
+                "kontrahent": row.Nazwa_Kontrahenta, "brutto": round(brutto, 2), "count": row.cnt,
+                "pct": round(brutto / total_brutto * 100, 1) if total_brutto else 0.0,
+            })
+        return items, round(total_brutto, 2)
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (get_top_kontrahenci): {e}")
+        return [], 0.0
+    finally:
+        conn.close()
+
+
+def get_dzial_trend(year_from, month_from, year_to, month_to):
+    """Suma brutto per rok-miesiąc-dział_docelowy — źródło wykresu struktury
+    kosztów wg działu w czasie (zakładka „Działy” analityki)."""
+    date_from, date_to = _month_range_bounds(year_from, month_from, year_to, month_to)
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT YEAR(Data_Wystwawienia) AS yr, MONTH(Data_Wystwawienia) AS mo, "
+            "COALESCE(NULLIF(LTRIM(RTRIM(dzial_docelowy)), ''), '(brak działu)') AS dzial, "
+            "SUM(ISNULL(Kwota_Netto,0) + ISNULL(Kwota_Vat,0)) AS brutto "
+            "FROM Faktury_Kosztowe_Zmapowane "
+            "WHERE Data_Wystwawienia >= ? AND Data_Wystwawienia < ? "
+            "GROUP BY YEAR(Data_Wystwawienia), MONTH(Data_Wystwawienia), "
+            "COALESCE(NULLIF(LTRIM(RTRIM(dzial_docelowy)), ''), '(brak działu)') "
+            "ORDER BY yr, mo",
+            (date_from, date_to),
+        )
+        results = []
+        for row in cursor.fetchall():
+            brutto = float(row.brutto) if row.brutto is not None else 0.0
+            results.append({"year": row.yr, "month": row.mo, "dzial": row.dzial, "brutto": round(brutto, 2)})
+        return results
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (get_dzial_trend): {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def get_kategoria_breakdown(year_from, month_from, year_to, month_to, dzial=None):
+    """Suma brutto per KATEGORIA w oknie, opcjonalnie zawężona do jednego
+    dzial_docelowy — zakładka „Kategorie” analityki."""
+    date_from, date_to = _month_range_bounds(year_from, month_from, year_to, month_to)
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor()
+        where = "WHERE Data_Wystwawienia >= ? AND Data_Wystwawienia < ?"
+        params = [date_from, date_to]
+        if dzial:
+            where += " AND dzial_docelowy = ?"
+            params.append(dzial)
+        cursor.execute(
+            "SELECT COALESCE(NULLIF(LTRIM(RTRIM(KATEGORIA)), ''), '(brak kategorii)') AS kategoria, "
+            "SUM(ISNULL(Kwota_Netto,0) + ISNULL(Kwota_Vat,0)) AS brutto, COUNT(*) AS cnt "
+            f"FROM Faktury_Kosztowe_Zmapowane {where} "
+            "GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(KATEGORIA)), ''), '(brak kategorii)') "
+            "ORDER BY brutto DESC",
+            params,
+        )
+        results = []
+        for row in cursor.fetchall():
+            brutto = float(row.brutto) if row.brutto is not None else 0.0
+            results.append({"kategoria": row.kategoria, "brutto": round(brutto, 2), "count": row.cnt})
+        return results
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (get_kategoria_breakdown): {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def get_podkategoria_breakdown(year_from, month_from, year_to, month_to, kategoria_variants, dzial=None):
+    """Jak get_kategoria_breakdown, ale drill-down w PODKATEGORIA w ramach
+    wybranej KATEGORIA. `kategoria_variants` to LISTA surowych wartości
+    KATEGORIA (nie jedna etykieta) — core/analytics.py scala warianty tej
+    samej kategorii różniące się tylko pisownią (patrz _merge_variants), więc
+    żeby drill-down objął WSZYSTKIE faktury tej grupy, filtr musi dopasować
+    każdy z tych wariantów, nie tylko wybraną (kanoniczną) etykietę."""
+    date_from, date_to = _month_range_bounds(year_from, month_from, year_to, month_to)
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor()
+        placeholders = ",".join("?" * len(kategoria_variants))
+        where = (
+            "WHERE Data_Wystwawienia >= ? AND Data_Wystwawienia < ? "
+            f"AND COALESCE(NULLIF(LTRIM(RTRIM(KATEGORIA)), ''), '(brak kategorii)') IN ({placeholders})"
+        )
+        params = [date_from, date_to, *kategoria_variants]
+        if dzial:
+            where += " AND dzial_docelowy = ?"
+            params.append(dzial)
+        cursor.execute(
+            "SELECT COALESCE(NULLIF(LTRIM(RTRIM(PODKATEGORIA)), ''), '(brak podkategorii)') AS podkategoria, "
+            "SUM(ISNULL(Kwota_Netto,0) + ISNULL(Kwota_Vat,0)) AS brutto, COUNT(*) AS cnt "
+            f"FROM Faktury_Kosztowe_Zmapowane {where} "
+            "GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(PODKATEGORIA)), ''), '(brak podkategorii)') "
+            "ORDER BY brutto DESC",
+            params,
+        )
+        results = []
+        for row in cursor.fetchall():
+            brutto = float(row.brutto) if row.brutto is not None else 0.0
+            results.append({"podkategoria": row.podkategoria, "brutto": round(brutto, 2), "count": row.cnt})
+        return results
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (get_podkategoria_breakdown): {e}")
         return []
     finally:
         conn.close()

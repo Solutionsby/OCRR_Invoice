@@ -259,3 +259,86 @@ class BrowseResult(BaseModel):
     path: str
     parent: str | None
     subfolders: list[str]
+
+
+class SpendTrendPoint(BaseModel):
+    year: int
+    month: int
+    netto: float
+    vat: float
+    brutto: float
+    count: int
+
+
+class SpendTrendResponse(BaseModel):
+    points: list[SpendTrendPoint]
+    total_netto: float
+    total_vat: float
+    total_brutto: float
+    total_count: int
+
+
+class KontrahentRankItem(BaseModel):
+    kontrahent: str
+    brutto: float
+    count: int
+    pct: float
+
+
+class KontrahentRankResponse(BaseModel):
+    items: list[KontrahentRankItem]
+    total_brutto: float
+
+
+class MonthLabel(BaseModel):
+    year: int
+    month: int
+
+
+class DzialTrendSeries(BaseModel):
+    dzial: str
+    values: list[float]
+    total: float
+
+
+class DzialTrendResponse(BaseModel):
+    months: list[MonthLabel]
+    series: list[DzialTrendSeries]
+
+
+class KategoriaBreakdownItem(BaseModel):
+    kategoria: str
+    brutto: float
+    count: int
+    pct: float
+
+
+class KategoriaBreakdownResponse(BaseModel):
+    items: list[KategoriaBreakdownItem]
+    total_brutto: float
+
+
+class PodkategoriaBreakdownItem(BaseModel):
+    podkategoria: str
+    brutto: float
+    count: int
+    pct: float
+
+
+class PodkategoriaBreakdownResponse(BaseModel):
+    items: list[PodkategoriaBreakdownItem]
+    total_brutto: float
+
+
+class ForecastPoint(BaseModel):
+    year: int
+    month: int
+    brutto: float
+
+
+class SpendForecastResponse(BaseModel):
+    history: list[SpendTrendPoint]
+    forecast: list[ForecastPoint]
+    seasonal_index: dict[str, float]
+    history_months: int
+    level: float

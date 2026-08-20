@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Analityka — OCRR Invoice</title>
+<link rel="stylesheet" href="/styles.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="toast" class="toast hidden"></div>
+
+<div class="mailer-page">
+  <header class="mailer-page-header">
+    <a href="/" class="btn-icon" title="Powrót do faktur">← Faktury</a>
+    <h1>Analityka</h1>
+    <a href="/mailer.html" class="btn-icon" title="Mailer — przypomnienia i raporty">📧</a>
+  </header>
+
+  <nav class="mailer-tabs">
+    <button type="button" class="mailer-tab active" data-tab="trend">Trend kosztów</button>
+    <button type="button" class="mailer-tab" data-tab="kontrahenci">Kontrahenci</button>
+    <button type="button" class="mailer-tab" data-tab="dzialy">Działy</button>
+    <button type="button" class="mailer-tab" data-tab="kategorie">Kategorie</button>
+  </nav>
+
+  <main class="mailer-content">
+
+    <section id="tab-trend" class="mailer-tab-panel active">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Trend kosztów w czasie</h3>
+        </div>
+        <div class="mailer-policy-fields">
+          <label>Od
+            <input id="trend-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="trend-month-to" type="month">
+          </label>
+          <label class="mailer-checkbox-field">
+            <input id="trend-show-forecast" type="checkbox" checked>
+            Pokaż prognozę
+          </label>
+          <label>Miesięcy naprzód
+            <input id="trend-forecast-months" type="number" min="1" max="12" step="1" value="6">
+          </label>
+          <button type="button" id="btn-trend-refresh" class="btn btn-primary">Odśwież</button>
+        </div>
+        <p id="trend-status" class="muted"></p>
+        <p id="trend-forecast-status" class="muted"></p>
+        <div class="an-chart-box"><canvas id="trend-chart"></canvas></div>
+      </div>
+    </section>
+
+    <section id="tab-kontrahenci" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Ranking kontrahentów</h3>
+        </div>
+        <div class="mailer-policy-fields">
+          <label>Od
+            <input id="kontrahenci-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="kontrahenci-month-to" type="month">
+          </label>
+          <label>Ile pokazać
+            <input id="kontrahenci-limit" type="number" min="3" max="50" step="1" value="15">
+          </label>
+          <label>Dział
+            <select id="kontrahenci-dzial-select"><option value="">— wszystkie —</option></select>
+          </label>
+          <button type="button" id="btn-kontrahenci-refresh" class="btn btn-primary">Odśwież</button>
+        </div>
+        <p id="kontrahenci-status" class="muted"></p>
+        <div class="an-chart-box an-chart-box-tall"><canvas id="kontrahenci-chart"></canvas></div>
+        <div id="kontrahenci-table"></div>
+      </div>
+    </section>
+
+    <section id="tab-dzialy" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Struktura kosztów wg działu w czasie</h3>
+        </div>
+        <div class="mailer-policy-fields">
+          <label>Od
+            <input id="dzialy-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="dzialy-month-to" type="month">
+          </label>
+          <button type="button" id="btn-dzialy-refresh" class="btn btn-primary">Odśwież</button>
+        </div>
+        <p id="dzialy-status" class="muted"></p>
+        <div class="an-chart-box"><canvas id="dzialy-chart"></canvas></div>
+        <div id="dzialy-table"></div>
+      </div>
+    </section>
+
+    <section id="tab-kategorie" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Kategorie kosztów</h3>
+        </div>
+        <div class="mailer-policy-fields">
+          <label>Od
+            <input id="kategorie-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="kategorie-month-to" type="month">
+          </label>
+          <label>Dział
+            <select id="kategorie-dzial-select"><option value="">— wszystkie —</option></select>
+          </label>
+          <button type="button" id="btn-kategorie-refresh" class="btn btn-primary">Odśwież</button>
+        </div>
+        <p id="kategorie-status" class="muted"></p>
+        <div class="an-chart-box an-chart-box-tall"><canvas id="kategorie-chart"></canvas></div>
+        <div id="kategorie-table"></div>
+
+        <div class="mailer-monthly-block" id="podkategorie-block" style="display:none;">
+          <h4>Podkategorie dla: <span id="podkategorie-kategoria-label"></span></h4>
+          <div class="an-chart-box"><canvas id="podkategorie-chart"></canvas></div>
+          <div id="podkategorie-table"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="/analityka.js"></script>
+</body>
+</html>
