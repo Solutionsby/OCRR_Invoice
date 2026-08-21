@@ -484,7 +484,6 @@ const dochodWarning = document.getElementById("dochod-warning");
 const dochodBrandsTotalEl = document.getElementById("dochod-brands-total");
 const dochodCardsEl = document.getElementById("dochod-cards");
 const dochodTableEl = document.getElementById("dochod-table");
-const dochodBezPrzychoduEl = document.getElementById("dochod-bez-przychodu");
 
 // Te działy dostają własną, osobną kartę bilansu — reszta ląduje zbiorczo w
 // tabeli "Pozostałe działy" poniżej. Kolejność jak podana przez użytkownika.
@@ -505,21 +504,28 @@ function fmtDochod(v) {
 
 function dochodCardBodyHtml(kosztNetto, przychodNetto, dochod) {
   const przychod = przychodNetto === null ? "—" : fmtMoney(przychodNetto);
-  let dochodHtml = "—";
-  if (dochod !== null) {
-    const cls = dochod >= 0 ? "positive" : "negative";
-    dochodHtml = `<span class="an-dochod-value ${cls}">${fmtDochod(dochod)}</span>`;
-  }
+  const cls = dochod >= 0 ? "positive" : "negative";
   return (
     `<p><span>Koszt netto</span><span class="an-dochod-value">${fmtMoney(kosztNetto)}</span></p>` +
     `<p><span>Przychód netto</span><span class="an-dochod-value">${przychod}</span></p>` +
-    `<p><span>Dochód</span>${dochodHtml}</p>`
+    `<p><span>Dochód</span><span class="an-dochod-value ${cls}">${fmtDochod(dochod)}</span></p>`
   );
 }
 
 function renderDochodCards(items) {
   dochodCardsEl.innerHTML = "";
-  DOCHOD_NAMED_DZIALY.forEach((dzial) => {
+  // Od najlepszego do najgorszego dochodu — brandy bez faktur w ogóle (brak
+  // pozycji, nie 0 zł dochodu) lądują na końcu, bo nie da się ich porównać.
+  const sorted = [...DOCHOD_NAMED_DZIALY].sort((a, b) => {
+    const ia = items.find((i) => i.dzial === a);
+    const ib = items.find((i) => i.dzial === b);
+    if (!ia && !ib) return 0;
+    if (!ia) return 1;
+    if (!ib) return -1;
+    return ib.dochod - ia.dochod;
+  });
+
+  sorted.forEach((dzial) => {
     const it = items.find((i) => i.dzial === dzial);
     const card = document.createElement("div");
     card.className = "an-dochod-card";
@@ -533,26 +539,25 @@ function renderDochodCards(items) {
   });
 }
 
-// Suma TYLKO tych spośród 6 nazwanych brandów, które mają śledzony przychód
-// (spójnie z total_* z API — inaczej doliczenie kosztu brandów bez przychodu
-// zaniżałoby dochód w sposób nieporównywalny z przychodem, który go nie
-// obejmuje).
+// Suma WSZYSTKICH 6 nazwanych brandów — brak śledzonego przychodu liczy się
+// jako 0 (patrz core/analytics.get_dochod), więc dochod tu zawsze jest
+// liczbą i sumuje się wprost, bez pomijania brandów bez przychodu.
 function renderDochodBrandsTotal(items) {
   dochodBrandsTotalEl.innerHTML = "";
-  const zPrzychodem = items.filter((i) => DOCHOD_NAMED_DZIALY.includes(i.dzial) && i.dochod !== null);
-  if (!zPrzychodem.length) {
-    dochodBrandsTotalEl.innerHTML = `<p class="muted">Żaden z 6 brandów nie ma jeszcze śledzonego przychodu.</p>`;
+  const brandy = items.filter((i) => DOCHOD_NAMED_DZIALY.includes(i.dzial));
+  if (!brandy.length) {
+    dochodBrandsTotalEl.innerHTML = `<p class="muted">Brak danych dla 6 głównych brandów w wybranym okresie.</p>`;
     return;
   }
-  const koszt = zPrzychodem.reduce((s, i) => s + i.koszt_netto, 0);
-  const przychod = zPrzychodem.reduce((s, i) => s + i.przychod_netto, 0);
-  const dochod = przychod - koszt;
+  const koszt = brandy.reduce((s, i) => s + i.koszt_netto, 0);
+  const przychod = brandy.reduce((s, i) => s + (i.przychod_netto || 0), 0);
+  const dochod = brandy.reduce((s, i) => s + i.dochod, 0);
+  const zPrzychodem = brandy.filter((i) => i.przychod_netto !== null).length;
 
   const card = document.createElement("div");
   card.className = "an-dochod-card an-dochod-card-total";
-  const nazwy = zPrzychodem.map((i) => i.dzial).join(", ");
   card.innerHTML =
-    `<h4>Brandy łącznie (${zPrzychodem.length}/${DOCHOD_NAMED_DZIALY.length}: ${nazwy})</h4>` +
+    `<h4>Brandy łącznie — wszystkie ${DOCHOD_NAMED_DZIALY.length} (przychód znany dla ${zPrzychodem}, reszta liczona z 0 zł przychodu)</h4>` +
     dochodCardBodyHtml(koszt, przychod, dochod);
   dochodBrandsTotalEl.appendChild(card);
 }
@@ -560,33 +565,23 @@ function renderDochodBrandsTotal(items) {
 function renderDochodTable(items) {
   dochodTableEl.innerHTML = "";
   if (!items.length) return;
-  // Większość tych działów nie ma jeszcze przychodu, więc sortowanie po
-  // koszcie (malejąco) ma tu więcej sensu niż po dochodzie — od największych
-  // do najmniejszych, tak jak poproszono.
+  // Te działy nie generują (i nie będą generować) przychodu — pokazujemy
+  // tylko koszt, posortowany malejąco (od największych do najmniejszych).
   const sorted = [...items].sort((a, b) => b.koszt_netto - a.koszt_netto);
 
   const table = document.createElement("table");
   table.className = "dzial-breakdown-table";
-  table.innerHTML = "<thead><tr><th>Dział</th><th>Koszt netto</th><th>Przychód netto</th><th>Dochód</th></tr></thead>";
+  table.innerHTML = "<thead><tr><th>Dział</th><th>Koszt netto</th></tr></thead>";
   const tbody = document.createElement("tbody");
   sorted.forEach((it) => {
     const tr = document.createElement("tr");
-    const przychod = it.przychod_netto === null ? "—" : fmtMoney(it.przychod_netto);
-    const dochod = it.dochod === null ? "—" : fmtDochod(it.dochod);
-    tr.innerHTML = `<td>${it.dzial}</td><td>${fmtMoney(it.koszt_netto)}</td><td>${przychod}</td><td>${dochod}</td>`;
+    tr.innerHTML = `<td>${it.dzial}</td><td>${fmtMoney(it.koszt_netto)}</td>`;
     tbody.appendChild(tr);
   });
 
   const totalKoszt = sorted.reduce((s, i) => s + i.koszt_netto, 0);
-  const zPrzychodem = sorted.filter((i) => i.przychod_netto !== null);
-  const totalPrzychod = zPrzychodem.length ? zPrzychodem.reduce((s, i) => s + i.przychod_netto, 0) : null;
-  const totalDochod = totalPrzychod !== null ? totalPrzychod - zPrzychodem.reduce((s, i) => s + i.koszt_netto, 0) : null;
   const totalTr = document.createElement("tr");
-  totalTr.innerHTML =
-    `<td><strong>Suma (${sorted.length})</strong></td>` +
-    `<td><strong>${fmtMoney(totalKoszt)}</strong></td>` +
-    `<td><strong>${totalPrzychod === null ? "—" : fmtMoney(totalPrzychod)}</strong></td>` +
-    `<td><strong>${totalDochod === null ? "—" : fmtDochod(totalDochod)}</strong></td>`;
+  totalTr.innerHTML = `<td><strong>Suma (${sorted.length})</strong></td><td><strong>${fmtMoney(totalKoszt)}</strong></td>`;
   tbody.appendChild(totalTr);
 
   table.appendChild(tbody);
@@ -602,9 +597,7 @@ async function loadDochod() {
   try {
     const res = await fetch(`/api/analytics/dochod?${qs(range)}`);
     const data = await res.json();
-    dochodStatus.textContent =
-      `Łącznie (tylko działy z przychodem): koszt ${fmtMoney(data.total_koszt_netto)} · ` +
-      `przychód ${fmtMoney(data.total_przychod_netto)} · dochód ${fmtDochod(data.total_dochod)}`;
+    dochodStatus.textContent = "";
 
     if (range.year_from < DOCHOD_MIN_YEAR || (range.year_from === DOCHOD_MIN_YEAR && range.month_from < DOCHOD_MIN_MONTH)) {
       dochodWarning.textContent =
@@ -616,10 +609,6 @@ async function loadDochod() {
     renderDochodBrandsTotal(data.items);
     renderDochodCards(data.items);
     renderDochodTable(data.items.filter((it) => !DOCHOD_NAMED_DZIALY.includes(it.dzial)));
-
-    dochodBezPrzychoduEl.textContent = data.dzialy_bez_przychodu.length
-      ? `Działy bez śledzonego przychodu (nie wliczone do "łącznie"): ${data.dzialy_bez_przychodu.join(", ")}.`
-      : "";
   } catch (e) {
     dochodStatus.textContent = "Błąd ładowania danych.";
     showToast("Nie udało się pobrać zestawienia dochodu.", true);

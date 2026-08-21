@@ -175,6 +175,25 @@ Na razie 2 działy (Hotel, Automaty), reszta dochodzi sukcesywnie.
       wiersz sumy (Koszt zawsze, Przychód/Dochód tylko jeśli któryś z reszty
       ma dane) i sortowanie malejąco po koszcie (nie po dochodzie — większość
       tych działów nie ma jeszcze przychodu). Wdrożone do Dockera.
+- [x] Zmiana semantyki na życzenie użytkownika: brak śledzonego przychodu = 0 zł
+      przychodu (nie "brak danych"), więc `dochod` jest ZAWSZE liczbą (ujemną,
+      gdy przychód nieznany — dochod = −koszt) i WSZYSTKIE działy wchodzą do
+      sum/kart (`core/analytics.get_dochod`, `api/schemas.DochodItem.dochod:
+      float`, nie `float | None`). `przychod_netto` samo w sobie zostaje
+      `None` gdy nietrackowane — dalej odróżnia "wiemy że 0" od "jeszcze nie
+      wiemy". Karta „Brandy łącznie” i wiersz sumy „Pozostałe działy” sumują
+      teraz wszystkich, kolor czerwony/zielony w każdym wierszu. Zweryfikowane
+      na żywych danych (2024-01–2026-08): suma `dochod` per dział = total_dochod
+      co do grosza (6 981 624,57 zł); przykład ujemnego: Wspólne
+      koszt 1 530 874,83 / przychód 237 422,34 / dochód **−1 293 452,49**.
+      Wdrożone do Dockera.
+- [x] Doprecyzowanie na życzenie użytkownika: „Pozostałe działy” (poza 6
+      głównymi brandami) nigdy nie będą generować przychodu (koszty
+      wsparcia/ogólne) — tabela zredukowana do Dział/Koszt (bez
+      Przychód/Dochód, które tam były bez sensu). „Łącznie” na górze strony
+      zmienione tak, żeby liczyć TYLKO 6 brandów (spójnie z kartą „Brandy
+      łącznie” — usunięty zdublowany tekst statusu, karta jest teraz jedynym
+      źródłem tej liczby). Wdrożone do Dockera.
 
 ## Etap 4 — domknięcie
 - [ ] README: krótki opis nowej podstrony „Analityka" (w tym prognoza)

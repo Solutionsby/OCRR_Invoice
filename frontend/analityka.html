@@ -141,9 +141,10 @@
         <div class="mailer-section-header">
           <h3>Dochód (przychód netto − koszt netto) wg działu</h3>
         </div>
-        <p class="muted">Przychód: <code>Przychody.dbo.Przychod_Netto</code> — na razie tylko część działów ma tam
-          dane, kolejne dochodzą sukcesywnie. „Łącznie” liczy się WYŁĄCZNIE z działów, dla których jest przychód —
-          nie jest to pełny wynik firmy.</p>
+        <p class="muted">Dochód liczony jest tylko dla 6 głównych brandów (przychód: <code>Przychody.dbo.Przychod_Netto</code>
+          — na razie tylko część ma tam dane, kolejne dochodzą sukcesywnie; brak przychodu dla brandu liczy się jako
+          0 zł, więc jego dochód wychodzi na minus). Pozostałe działy to koszty wsparcia/ogólne — nie generują
+          przychodu, więc pokazujemy dla nich tylko koszt.</p>
         <div class="mailer-policy-fields">
           <label>Od
             <input id="dochod-month-from" type="month">
@@ -160,9 +161,8 @@
 
         <div id="dochod-cards" class="an-dochod-cards"></div>
 
-        <h4 class="an-dochod-rest-heading">Pozostałe działy</h4>
+        <h4 class="an-dochod-rest-heading">Pozostałe działy (koszty wsparcia/ogólne, bez przychodu)</h4>
         <div id="dochod-table"></div>
-        <p id="dochod-bez-przychodu" class="muted"></p>
       </div>
     </section>
 

@@ -221,14 +221,14 @@ def get_podkategoria_breakdown(year_from: int, month_from: int, year_to: int, mo
 def get_dochod(year_from: int, month_from: int, year_to: int, month_to: int) -> dict:
     """
     Dochód (przychód netto − koszt netto) per dział, zsumowany za cały
-    wybrany okres — plus łączny wynik. "Łączny" liczy się TYLKO z działów,
-    które mają w tym oknie choćby jeden miesiąc przychodu w
-    Przychody.dbo.Przychod_Netto — większość działów dziś nie ma jeszcze
-    śledzonego przychodu (użytkownik uzupełnia je stopniowo, patrz
-    [[project_analityka_forecast]]), więc zwykła suma kosztów wszystkich
-    działów minus przychód tylko dwóch dałaby fałszywie ogromną "stratę".
-    Działy bez przychodu wracają osobno w `dzialy_bez_przychodu`, żeby było
-    jawne, czego jeszcze nie obejmuje "łącznie".
+    wybrany okres — plus łączny wynik dla WSZYSTKICH działów. Brak śledzonego
+    przychodu liczy się jako 0 zł przychodu (nie "brak danych") — więc dział
+    bez przychodu pokazuje dochód na minusie, równy jego kosztowi, dopóki
+    użytkownik nie doda dla niego przychodu w Przychody.dbo.Przychod_Netto
+    (uzupełnia je stopniowo, patrz [[project_analityka_forecast]]).
+    `przychod_netto` samo w sobie zostaje `None`, gdy nic nie jest śledzone —
+    to wciąż odróżnia "wiemy że 0" od "jeszcze nie wiemy" — ale `dochod` jest
+    zawsze liczbą, żeby dało się uwzględniać wszystkie działy w podsumowaniu.
     """
     rows = db.get_dochod(year_from, month_from, year_to, month_to)
 
@@ -246,17 +246,15 @@ def get_dochod(year_from: int, month_from: int, year_to: int, month_to: int) -> 
     total_koszt = total_przychod = 0.0
     for dzial, e in by_dzial.items():
         koszt = round(e["koszt_netto"], 2)
-        if not e["ma_przychod"]:
-            items.append({"dzial": dzial, "koszt_netto": koszt, "przychod_netto": None, "dochod": None})
-            dzialy_bez_przychodu.append(dzial)
-            continue
-        przychod = round(e["przychod_netto"], 2)
-        dochod = round(przychod - koszt, 2)
+        przychod = round(e["przychod_netto"], 2) if e["ma_przychod"] else None
+        dochod = round((przychod or 0.0) - koszt, 2)
         items.append({"dzial": dzial, "koszt_netto": koszt, "przychod_netto": przychod, "dochod": dochod})
+        if not e["ma_przychod"]:
+            dzialy_bez_przychodu.append(dzial)
         total_koszt += koszt
-        total_przychod += przychod
+        total_przychod += (przychod or 0.0)
 
-    items.sort(key=lambda i: (i["dochod"] is None, -(i["dochod"] or 0)))
+    items.sort(key=lambda i: i["dochod"], reverse=True)
     dzialy_bez_przychodu.sort()
 
     return {

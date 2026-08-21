@@ -348,7 +348,7 @@ class DochodItem(BaseModel):
     dzial: str
     koszt_netto: float
     przychod_netto: float | None
-    dochod: float | None
+    dochod: float
 
 
 class DochodResponse(BaseModel):
