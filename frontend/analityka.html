@@ -22,6 +22,7 @@
     <button type="button" class="mailer-tab" data-tab="kontrahenci">Kontrahenci</button>
     <button type="button" class="mailer-tab" data-tab="dzialy">Działy</button>
     <button type="button" class="mailer-tab" data-tab="kategorie">Kategorie</button>
+    <button type="button" class="mailer-tab" data-tab="dochod">Dochód</button>
   </nav>
 
   <main class="mailer-content">
@@ -37,6 +38,13 @@
           </label>
           <label>Do
             <input id="trend-month-to" type="month">
+          </label>
+          <label>Rodzaj kosztów
+            <select id="trend-cykliczna-select">
+              <option value="">— wszystkie —</option>
+              <option value="true">Cykliczne</option>
+              <option value="false">Jednorazowe</option>
+            </select>
           </label>
           <label class="mailer-checkbox-field">
             <input id="trend-show-forecast" type="checkbox" checked>
@@ -125,6 +133,36 @@
           <div class="an-chart-box"><canvas id="podkategorie-chart"></canvas></div>
           <div id="podkategorie-table"></div>
         </div>
+      </div>
+    </section>
+
+    <section id="tab-dochod" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Dochód (przychód netto − koszt netto) wg działu</h3>
+        </div>
+        <p class="muted">Przychód: <code>Przychody.dbo.Przychod_Netto</code> — na razie tylko część działów ma tam
+          dane, kolejne dochodzą sukcesywnie. „Łącznie” liczy się WYŁĄCZNIE z działów, dla których jest przychód —
+          nie jest to pełny wynik firmy.</p>
+        <div class="mailer-policy-fields">
+          <label>Od
+            <input id="dochod-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="dochod-month-to" type="month">
+          </label>
+          <button type="button" id="btn-dochod-refresh" class="btn btn-primary">Odśwież</button>
+        </div>
+        <p id="dochod-status" class="muted"></p>
+        <p id="dochod-warning" class="muted"></p>
+
+        <div id="dochod-brands-total"></div>
+
+        <div id="dochod-cards" class="an-dochod-cards"></div>
+
+        <h4 class="an-dochod-rest-heading">Pozostałe działy</h4>
+        <div id="dochod-table"></div>
+        <p id="dochod-bez-przychodu" class="muted"></p>
       </div>
     </section>
 

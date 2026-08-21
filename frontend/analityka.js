@@ -85,6 +85,7 @@ document.querySelectorAll(".mailer-tab").forEach((btn) => {
 
 const trendFromEl = document.getElementById("trend-month-from");
 const trendToEl = document.getElementById("trend-month-to");
+const trendCyklicznaEl = document.getElementById("trend-cykliczna-select");
 const trendStatus = document.getElementById("trend-status");
 const trendForecastStatus = document.getElementById("trend-forecast-status");
 const trendShowForecastEl = document.getElementById("trend-show-forecast");
@@ -94,13 +95,15 @@ let trendChart = null;
 async function loadTrend() {
   const range = parseMonthRange(trendFromEl, trendToEl);
   if (!range) return;
+  const cykliczna = trendCyklicznaEl.value;
   trendStatus.textContent = "Ładowanie...";
   trendForecastStatus.textContent = "";
   try {
-    const res = await fetch(`/api/analytics/trend?${qs(range)}`);
+    const res = await fetch(`/api/analytics/trend?${qs({ ...range, cykliczna })}`);
     const data = await res.json();
+    const rodzajLabel = cykliczna === "true" ? " (cykliczne)" : cykliczna === "false" ? " (jednorazowe)" : "";
     trendStatus.textContent =
-      `Suma brutto: ${fmtMoney(data.total_brutto)} · Faktur: ${data.total_count}`;
+      `Suma brutto${rodzajLabel}: ${fmtMoney(data.total_brutto)} · Faktur: ${data.total_count}`;
 
     const labels = data.points.map((p) => monthLabel(p.year, p.month));
     const brutto = data.points.map((p) => p.brutto);
@@ -117,16 +120,33 @@ async function loadTrend() {
     if (trendShowForecastEl.checked) {
       const monthsAhead = parseInt(trendForecastMonthsEl.value, 10) || 6;
       try {
-        const fcRes = await fetch(`/api/analytics/forecast?${qs({ months_ahead: monthsAhead })}`);
+        const fcRes = await fetch(`/api/analytics/forecast?${qs({ months_ahead: monthsAhead, cykliczna })}`);
         const fc = await fcRes.json();
         if (fc.forecast && fc.forecast.length && brutto.length) {
-          fc.forecast.forEach((p) => labels.push(monthLabel(p.year, p.month)));
-          // Kropkowana linia zaczyna się od ostatniego realnego punktu, żeby
-          // wizualnie łączyła się z linią rzeczywistych kosztów.
+          // Backend prognozuje na nowo bieżący (niedokończony) miesiąc jako
+          // PIERWSZY punkt prognozy — to ta sama etykieta co ostatni realny
+          // punkt (patrz core/analytics.get_spend_forecast), nie nowy słupek.
+          // Bez tego rozróżnienia front dokładał duplikat etykiety miesiąca
+          // i przesuwał całą resztę prognozy o jedną pozycję.
+          const lastPoint = data.points[data.points.length - 1];
+          let forecastPoints = fc.forecast;
           const forecastSeries = new Array(brutto.length - 1).fill(null);
-          forecastSeries.push(brutto[brutto.length - 1]);
-          fc.forecast.forEach((p) => forecastSeries.push(p.brutto));
-          brutto.push(...new Array(fc.forecast.length).fill(null));
+
+          if (lastPoint && forecastPoints[0].year === lastPoint.year && forecastPoints[0].month === lastPoint.month) {
+            forecastSeries.push(forecastPoints[0].brutto);
+            forecastPoints = forecastPoints.slice(1);
+          } else {
+            // Normalny przypadek (ostatni widoczny miesiąc jest kompletny):
+            // kropkowana linia zaczyna się od ostatniego realnego punktu,
+            // żeby wizualnie łączyła się z linią rzeczywistych kosztów.
+            forecastSeries.push(brutto[brutto.length - 1]);
+          }
+
+          forecastPoints.forEach((p) => {
+            labels.push(monthLabel(p.year, p.month));
+            forecastSeries.push(p.brutto);
+            brutto.push(null);
+          });
 
           datasets[0].data = brutto;
           datasets.push({
@@ -455,14 +475,170 @@ document.getElementById("btn-kategorie-refresh").addEventListener("click", () =>
   loadKategorie();
 });
 
+// --- Dochód (koszt vs przychód wg działu) ---
+
+const dochodFromEl = document.getElementById("dochod-month-from");
+const dochodToEl = document.getElementById("dochod-month-to");
+const dochodStatus = document.getElementById("dochod-status");
+const dochodWarning = document.getElementById("dochod-warning");
+const dochodBrandsTotalEl = document.getElementById("dochod-brands-total");
+const dochodCardsEl = document.getElementById("dochod-cards");
+const dochodTableEl = document.getElementById("dochod-table");
+const dochodBezPrzychoduEl = document.getElementById("dochod-bez-przychodu");
+
+// Te działy dostają własną, osobną kartę bilansu — reszta ląduje zbiorczo w
+// tabeli "Pozostałe działy" poniżej. Kolejność jak podana przez użytkownika.
+const DOCHOD_NAMED_DZIALY = ["CornerMarket", "Hotel", "RDS", "Gastronomia", "Automaty", "Wspólne"];
+
+// Rzetelna, ciągła historia kosztów zaczyna się dopiero w 2024-01 (patrz
+// prognoza — wcześniejsze lata mają tylko pojedyncze, odosobnione wpisy).
+// Dochód liczony za lata sprzed tego progu zaniża koszty i sztucznie zawyża
+// wynik, więc to jest domyślny "Od" dla tej zakładki (nie "ostatnie 24
+// miesiące" jak gdzie indziej) — a ostrzeżenie w loadDochod() łapie ręczne
+// cofnięcie zakresu przed tę datę.
+const DOCHOD_MIN_YEAR = 2024, DOCHOD_MIN_MONTH = 1;
+
+function fmtDochod(v) {
+  const sign = v > 0 ? "+" : "";
+  return `${sign}${fmtMoney(v)}`;
+}
+
+function dochodCardBodyHtml(kosztNetto, przychodNetto, dochod) {
+  const przychod = przychodNetto === null ? "—" : fmtMoney(przychodNetto);
+  let dochodHtml = "—";
+  if (dochod !== null) {
+    const cls = dochod >= 0 ? "positive" : "negative";
+    dochodHtml = `<span class="an-dochod-value ${cls}">${fmtDochod(dochod)}</span>`;
+  }
+  return (
+    `<p><span>Koszt netto</span><span class="an-dochod-value">${fmtMoney(kosztNetto)}</span></p>` +
+    `<p><span>Przychód netto</span><span class="an-dochod-value">${przychod}</span></p>` +
+    `<p><span>Dochód</span>${dochodHtml}</p>`
+  );
+}
+
+function renderDochodCards(items) {
+  dochodCardsEl.innerHTML = "";
+  DOCHOD_NAMED_DZIALY.forEach((dzial) => {
+    const it = items.find((i) => i.dzial === dzial);
+    const card = document.createElement("div");
+    card.className = "an-dochod-card";
+    if (!it) {
+      card.innerHTML = `<h4>${dzial}</h4><p class="muted">Brak faktur w wybranym okresie.</p>`;
+      dochodCardsEl.appendChild(card);
+      return;
+    }
+    card.innerHTML = `<h4>${dzial}</h4>` + dochodCardBodyHtml(it.koszt_netto, it.przychod_netto, it.dochod);
+    dochodCardsEl.appendChild(card);
+  });
+}
+
+// Suma TYLKO tych spośród 6 nazwanych brandów, które mają śledzony przychód
+// (spójnie z total_* z API — inaczej doliczenie kosztu brandów bez przychodu
+// zaniżałoby dochód w sposób nieporównywalny z przychodem, który go nie
+// obejmuje).
+function renderDochodBrandsTotal(items) {
+  dochodBrandsTotalEl.innerHTML = "";
+  const zPrzychodem = items.filter((i) => DOCHOD_NAMED_DZIALY.includes(i.dzial) && i.dochod !== null);
+  if (!zPrzychodem.length) {
+    dochodBrandsTotalEl.innerHTML = `<p class="muted">Żaden z 6 brandów nie ma jeszcze śledzonego przychodu.</p>`;
+    return;
+  }
+  const koszt = zPrzychodem.reduce((s, i) => s + i.koszt_netto, 0);
+  const przychod = zPrzychodem.reduce((s, i) => s + i.przychod_netto, 0);
+  const dochod = przychod - koszt;
+
+  const card = document.createElement("div");
+  card.className = "an-dochod-card an-dochod-card-total";
+  const nazwy = zPrzychodem.map((i) => i.dzial).join(", ");
+  card.innerHTML =
+    `<h4>Brandy łącznie (${zPrzychodem.length}/${DOCHOD_NAMED_DZIALY.length}: ${nazwy})</h4>` +
+    dochodCardBodyHtml(koszt, przychod, dochod);
+  dochodBrandsTotalEl.appendChild(card);
+}
+
+function renderDochodTable(items) {
+  dochodTableEl.innerHTML = "";
+  if (!items.length) return;
+  // Większość tych działów nie ma jeszcze przychodu, więc sortowanie po
+  // koszcie (malejąco) ma tu więcej sensu niż po dochodzie — od największych
+  // do najmniejszych, tak jak poproszono.
+  const sorted = [...items].sort((a, b) => b.koszt_netto - a.koszt_netto);
+
+  const table = document.createElement("table");
+  table.className = "dzial-breakdown-table";
+  table.innerHTML = "<thead><tr><th>Dział</th><th>Koszt netto</th><th>Przychód netto</th><th>Dochód</th></tr></thead>";
+  const tbody = document.createElement("tbody");
+  sorted.forEach((it) => {
+    const tr = document.createElement("tr");
+    const przychod = it.przychod_netto === null ? "—" : fmtMoney(it.przychod_netto);
+    const dochod = it.dochod === null ? "—" : fmtDochod(it.dochod);
+    tr.innerHTML = `<td>${it.dzial}</td><td>${fmtMoney(it.koszt_netto)}</td><td>${przychod}</td><td>${dochod}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const totalKoszt = sorted.reduce((s, i) => s + i.koszt_netto, 0);
+  const zPrzychodem = sorted.filter((i) => i.przychod_netto !== null);
+  const totalPrzychod = zPrzychodem.length ? zPrzychodem.reduce((s, i) => s + i.przychod_netto, 0) : null;
+  const totalDochod = totalPrzychod !== null ? totalPrzychod - zPrzychodem.reduce((s, i) => s + i.koszt_netto, 0) : null;
+  const totalTr = document.createElement("tr");
+  totalTr.innerHTML =
+    `<td><strong>Suma (${sorted.length})</strong></td>` +
+    `<td><strong>${fmtMoney(totalKoszt)}</strong></td>` +
+    `<td><strong>${totalPrzychod === null ? "—" : fmtMoney(totalPrzychod)}</strong></td>` +
+    `<td><strong>${totalDochod === null ? "—" : fmtDochod(totalDochod)}</strong></td>`;
+  tbody.appendChild(totalTr);
+
+  table.appendChild(tbody);
+  dochodTableEl.appendChild(table);
+}
+
+async function loadDochod() {
+  const range = parseMonthRange(dochodFromEl, dochodToEl);
+  if (!range) return;
+  dochodStatus.textContent = "Ładowanie...";
+  dochodWarning.textContent = "";
+  dochodWarning.className = "muted";
+  try {
+    const res = await fetch(`/api/analytics/dochod?${qs(range)}`);
+    const data = await res.json();
+    dochodStatus.textContent =
+      `Łącznie (tylko działy z przychodem): koszt ${fmtMoney(data.total_koszt_netto)} · ` +
+      `przychód ${fmtMoney(data.total_przychod_netto)} · dochód ${fmtDochod(data.total_dochod)}`;
+
+    if (range.year_from < DOCHOD_MIN_YEAR || (range.year_from === DOCHOD_MIN_YEAR && range.month_from < DOCHOD_MIN_MONTH)) {
+      dochodWarning.textContent =
+        `Uwaga: przed 01/${DOCHOD_MIN_YEAR} historia kosztów w bazie jest niekompletna (pojedyncze, odosobnione wpisy) — ` +
+        `dochód za ten okres będzie zawyżony.`;
+      dochodWarning.className = "muted an-warning";
+    }
+
+    renderDochodBrandsTotal(data.items);
+    renderDochodCards(data.items);
+    renderDochodTable(data.items.filter((it) => !DOCHOD_NAMED_DZIALY.includes(it.dzial)));
+
+    dochodBezPrzychoduEl.textContent = data.dzialy_bez_przychodu.length
+      ? `Działy bez śledzonego przychodu (nie wliczone do "łącznie"): ${data.dzialy_bez_przychodu.join(", ")}.`
+      : "";
+  } catch (e) {
+    dochodStatus.textContent = "Błąd ładowania danych.";
+    showToast("Nie udało się pobrać zestawienia dochodu.", true);
+  }
+}
+
+document.getElementById("btn-dochod-refresh").addEventListener("click", loadDochod);
+
 // --- Start ---
 
 setDefaultRange(trendFromEl, trendToEl);
 setDefaultRange(kontrahenciFromEl, kontrahenciToEl);
 setDefaultRange(dzialyFromEl, dzialyToEl);
 setDefaultRange(kategorieFromEl, kategorieToEl);
+dochodFromEl.value = monthValue(DOCHOD_MIN_YEAR, DOCHOD_MIN_MONTH);
+dochodToEl.value = monthValue(defaultRange().toYear, defaultRange().toMonth);
 
 loadTrend();
 loadDzialyOptionsInto(kontrahenciDzialSelect, kontrahenciFromEl, kontrahenciToEl).then(loadKontrahenci);
 loadDzialyTrend();
 loadDzialyOptionsInto(kategorieDzialSelect, kategorieFromEl, kategorieToEl).then(loadKategorie);
+loadDochod();

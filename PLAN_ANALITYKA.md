@@ -103,10 +103,78 @@ czarnej skrzynce).
       pojedyncze wpisy z 2018-12 i 2023 poprawnie odcięte przez
       `_contiguous_history`), sezonowość sensowna dla biznesu hotelarskiego
       (szczyt czerwiec ×2.4, dołek luty ×0.58). Wdrożone do Dockera.
-- [ ] **Do zrobienia po stronie użytkownika**: segmentacja bazy na koszty
-      cykliczne/jednorazowe — gdy gotowe, warto rozbudować baseline (osobna
-      prognoza dla kosztów cyklicznych, inaczej dla jednorazowych) albo dodać
-      prawdziwy model tylko dla cyklicznych (stabilniejsze dane).
+- [x] Segmentacja po stronie użytkownika gotowa: tabela `dbo.KONTRAHENCI_CYKLICZNI`
+      (Nazwa_Kontrahenta PK, CzyCykliczna BIT, Uwagi, DataOznaczenia) +
+      `ALTER VIEW Faktury_Kosztowe_Zmapowane` z `LEFT JOIN` i
+      `COALESCE(kc.CzyCykliczna, 0) AS CzyCykliczna` — 55 kontrahentów
+      oznaczonych, 2041 faktur cyklicznych / 1565 jednorazowych na żywo.
+- [x] Dociągnięcie do backendu: `db.get_spend_trend(..., cykliczna=None|True|False)`
+      (filtr `AND CzyCykliczna = ?`), `core.analytics.get_spend_trend`/
+      `get_spend_forecast` przyjmują ten sam parametr, `GET /api/analytics/trend`
+      i `/forecast` mają query param `cykliczna`. Zweryfikowane na żywych
+      danych: cykliczne + jednorazowe = wszystkie, co do grosza
+      (4271606.93 + 3845441.89 = 8117048.82).
+- [x] Frontend: zakładka Trend — dropdown „Rodzaj kosztów" (wszystkie/cykliczne/
+      jednorazowe), filtruje jednocześnie wykres rzeczywistych kosztów i
+      prognozę. Cykliczne mają pełne 32 mies. ciągłej historii (z definicji —
+      to one były kryterium doboru), jednorazowe z natury bardziej nieregularne.
+- [x] Wdrożone do Dockera. **Nie zcommitowane jeszcze** — czeka na sygnał do
+      commitu/merge (jak poprzednio).
+- [x] Bug znaleziony przy pytaniu użytkownika „czemu styczeń 2026 > styczeń
+      2027 w prognozie": to NIE był błąd modelu (matematycznie prognoza
+      styczeń 2027 wychodzi WYŻEJ niż realny styczeń 2026 — sprawdzone
+      liczbowo), tylko błąd rysowania wykresu we `frontend/analityka.js`.
+      Backend prognozuje na nowo bieżący niedokończony miesiąc jako pierwszy
+      punkt prognozy (ta sama etykieta co ostatni realny punkt), a front tego
+      nie rozpoznawał — doklejał go jako DODATKOWĄ, zduplikowaną etykietę
+      miesiąca, przesuwając całą resztę prognozy (w tym styczeń) o jedną
+      pozycję na osi X. Naprawione: front wykrywa nakładający się miesiąc i
+      nie duplikuje etykiety. Wdrożone do Dockera.
+
+## Etap 3d — Dochód (przychód − koszt) wg działu ✅
+Użytkownik zbudował osobną bazę `Przychody` (tabela `Przychody.dbo.Przychod_Netto`:
+Dzial, Rok, Miesiac, KwotaNetto), agregującą przychody z tabel działowych.
+Na razie 2 działy (Hotel, Automaty), reszta dochodzi sukcesywnie.
+- [x] Uprawnienia: login `PYTHON` (`.env`/`DB_USER`) dostał `SELECT` na bazie
+      `Przychody` ORAZ na bazach źródłowych, z których korzysta widok
+      `Przychod_Netto` (np. „Sopocki Zdroj” — cross-database query rzuciła
+      błędem permission denied, dopóki nie nadano dostępu też tam).
+- [x] `utils/database_manager.get_dochod()`: JEDNO zapytanie, `FULL OUTER JOIN`
+      między `Faktury_Kosztowe_Zmapowane` (koszt netto per dział/miesiąc) a
+      `Przychody.dbo.Przychod_Netto` (cross-database, ten sam serwer SQL) —
+      brakująca strona wraca jako `None`, nie 0 (nie sugerować fałszywego
+      dochodu/straty dla działów bez śledzonego przychodu).
+- [x] `core/analytics.get_dochod()`: agreguje per dział za cały wybrany okres
+      + `total_*` liczone TYLKO z działów, które mają przychód (inaczej suma
+      kosztów 10 działów minus przychód 2 dałaby fałszywie ogromną „stratę”)
+      + `dzialy_bez_przychodu` jawnie wylistowane.
+- [x] `api/schemas.py` + `api/routers/analytics.py`: `GET /api/analytics/dochod`
+- [x] Frontend: nowa zakładka „Dochód” — tabela dział/koszt/przychód/dochód,
+      domyślny zakres Od=2024-01 (nie „ostatnie 24 mies.” jak gdzie indziej —
+      to próg, od którego historia kosztów jest ciągła), ostrzeżenie w UI gdy
+      zakres cofnięty przed 2024-01 (koszt niekompletny → dochód zawyżony).
+- [x] Weryfikacja na żywych danych (2024-01–2026-08): Hotel koszt 1 041 235,32 /
+      przychód 9 969 082,31 / dochód 8 927 846,99; Automaty koszt 887 594,63 /
+      przychód 926 519,04 / dochód 38 924,41. Zweryfikowana też pułapka: pełny
+      zakres od 2019 dawał total_dochod=18,58M (zawyżone, bo Hotel ma przychód
+      od 2019 ale koszt w bazie realnie dopiero od 2024) — stąd domyślny
+      zakres i ostrzeżenie w UI. Działa też cross-database z wnętrza
+      kontenera Docker (te same poświadczenia SQL).
+- [x] Rozbicie widoku (czysto front-end, `GET /api/analytics/dochod` bez zmian):
+      6 wymienionych działów (CornerMarket, Hotel, RDS, Gastronomia, Automaty,
+      Wspólne) dostaje własną kartę bilansu (`.an-dochod-card`, kolor
+      zielony/czerwony wg znaku dochodu), reszta działów zbiorczo w tabeli
+      „Pozostałe działy” poniżej (ta sama co dotąd, tylko odfiltrowana o tych
+      6). Zweryfikowane na żywych danych: wszystkie 6 nazwanych obecne w
+      wyniku, reszta (Kormoran, Konrad, Duba, „(brak działu)”, Aurena, DRUK)
+      poprawnie trafia do tabeli zbiorczej. Wdrożone do Dockera.
+- [x] Karta „Brandy łącznie” — suma koszt/przychód/dochód TYLKO z tych spośród
+      6 nazwanych brandów, które mają śledzony przychód (dziś: Hotel, RDS,
+      Automaty, Gastronomia, Wspólne — 5/6, brakuje CornerMarket), etykieta
+      pokazuje ile z 6 wchodzi w sumę. Tabela „Pozostałe działy” dostała
+      wiersz sumy (Koszt zawsze, Przychód/Dochód tylko jeśli któryś z reszty
+      ma dane) i sortowanie malejąco po koszcie (nie po dochodzie — większość
+      tych działów nie ma jeszcze przychodu). Wdrożone do Dockera.
 
 ## Etap 4 — domknięcie
 - [ ] README: krótki opis nowej podstrony „Analityka" (w tym prognoza)

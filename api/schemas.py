@@ -342,3 +342,18 @@ class SpendForecastResponse(BaseModel):
     seasonal_index: dict[str, float]
     history_months: int
     level: float
+
+
+class DochodItem(BaseModel):
+    dzial: str
+    koszt_netto: float
+    przychod_netto: float | None
+    dochod: float | None
+
+
+class DochodResponse(BaseModel):
+    items: list[DochodItem]
+    total_koszt_netto: float
+    total_przychod_netto: float
+    total_dochod: float
+    dzialy_bez_przychodu: list[str]

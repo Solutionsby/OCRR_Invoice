@@ -318,23 +318,29 @@ def _month_range_bounds(year_from, month_from, year_to, month_to):
     return date_from, date_to
 
 
-def get_spend_trend(year_from, month_from, year_to, month_to):
+def get_spend_trend(year_from, month_from, year_to, month_to, cykliczna=None):
     """Suma netto/VAT/liczba faktur per rok-miesiąc w zadanym oknie —
-    źródło wykresu trendu kosztów w czasie (zakładka „Trend” analityki)."""
+    źródło wykresu trendu kosztów w czasie (zakładka „Trend” analityki).
+    `cykliczna`: None = wszystkie, True = tylko CzyCykliczna=1 (kontrahenci
+    oznaczeni w KONTRAHENCI_CYKLICZNI), False = tylko jednorazowe."""
     date_from, date_to = _month_range_bounds(year_from, month_from, year_to, month_to)
     conn = get_db_connection()
     if not conn:
         return []
     try:
         cursor = conn.cursor()
+        where = "WHERE Data_Wystwawienia >= ? AND Data_Wystwawienia < ?"
+        params = [date_from, date_to]
+        if cykliczna is not None:
+            where += " AND CzyCykliczna = ?"
+            params.append(1 if cykliczna else 0)
         cursor.execute(
             "SELECT YEAR(Data_Wystwawienia) AS yr, MONTH(Data_Wystwawienia) AS mo, "
             "SUM(Kwota_Netto) AS netto, SUM(Kwota_Vat) AS vat, COUNT(*) AS cnt "
-            "FROM Faktury_Kosztowe_Zmapowane "
-            "WHERE Data_Wystwawienia >= ? AND Data_Wystwawienia < ? "
+            f"FROM Faktury_Kosztowe_Zmapowane {where} "
             "GROUP BY YEAR(Data_Wystwawienia), MONTH(Data_Wystwawienia) "
             "ORDER BY yr, mo",
-            (date_from, date_to),
+            params,
         )
         results = []
         for row in cursor.fetchall():
@@ -502,6 +508,84 @@ def get_podkategoria_breakdown(year_from, month_from, year_to, month_to, kategor
         return results
     except Exception as e:
         print(f"❌ BŁĄD SQL (get_podkategoria_breakdown): {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def get_dochod(year_from, month_from, year_to, month_to):
+    """
+    Zestawienie koszt netto / przychód netto per dział i miesiąc — łączy
+    (cross-database, w jednym zapytaniu na tym samym serwerze SQL)
+    Faktury_Kosztowe_Zmapowane (koszty) z Przychody.dbo.Przychod_Netto
+    (przychody). Wymaga, żeby login aplikacji miał SELECT na bazie Przychody
+    (i na bazach źródłowych, jeśli Przychod_Netto jest widokiem odpytującym
+    inne bazy) — bez tego cała funkcja padnie wyjątkiem.
+
+    FULL OUTER JOIN celowo — dział może mieć koszt bez śledzonego jeszcze
+    przychodu (większość działów dziś) albo (rzadziej) przychód bez kosztu w
+    danym miesiącu. Brakująca strona wraca jako None w wyniku Pythona, NIE
+    jako 0 — 0 sugerowałoby fałszywy dochód/stratę, podczas gdy naprawdę nie
+    mamy tych danych. Odróżnianie „brak danych” od „zero” zostawione
+    core/analytics.py.
+    """
+    date_from, date_to = _month_range_bounds(year_from, month_from, year_to, month_to)
+
+    start = year_from * 12 + (month_from - 1)
+    end = year_to * 12 + (month_to - 1)
+    if end < start:
+        start, end = end, start
+    start_key = (start // 12) * 100 + (start % 12 + 1)
+    end_key = (end // 12) * 100 + (end % 12 + 1)
+
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            WITH koszty AS (
+                SELECT
+                    COALESCE(NULLIF(LTRIM(RTRIM(dzial_docelowy)), ''), '(brak działu)') AS Dzial,
+                    YEAR(Data_Wystwawienia) AS Rok, MONTH(Data_Wystwawienia) AS Miesiac,
+                    SUM(ISNULL(Kwota_Netto, 0)) AS Koszt_Netto
+                FROM Faktury_Kosztowe_Zmapowane
+                WHERE Data_Wystwawienia >= ? AND Data_Wystwawienia < ?
+                GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(dzial_docelowy)), ''), '(brak działu)'),
+                         YEAR(Data_Wystwawienia), MONTH(Data_Wystwawienia)
+            ),
+            przychody AS (
+                SELECT Dzial, Rok, Miesiac, SUM(KwotaNetto) AS Przychod_Netto
+                FROM Przychody.dbo.Przychod_Netto
+                WHERE (Rok * 100 + Miesiac) >= ? AND (Rok * 100 + Miesiac) <= ?
+                GROUP BY Dzial, Rok, Miesiac
+            )
+            SELECT
+                COALESCE(k.Dzial, p.Dzial) AS Dzial,
+                COALESCE(k.Rok, p.Rok) AS Rok,
+                COALESCE(k.Miesiac, p.Miesiac) AS Miesiac,
+                k.Koszt_Netto,
+                p.Przychod_Netto
+            FROM koszty k
+            FULL OUTER JOIN przychody p
+                ON k.Dzial = p.Dzial AND k.Rok = p.Rok AND k.Miesiac = p.Miesiac
+            ORDER BY Rok, Miesiac, Dzial
+            """,
+            (date_from, date_to, start_key, end_key),
+        )
+        results = []
+        for row in cursor.fetchall():
+            results.append({
+                "dzial": row.Dzial,
+                "year": row.Rok,
+                "month": row.Miesiac,
+                "koszt_netto": round(float(row.Koszt_Netto), 2) if row.Koszt_Netto is not None else None,
+                "przychod_netto": round(float(row.Przychod_Netto), 2) if row.Przychod_Netto is not None else None,
+            })
+        return results
+    except Exception as e:
+        print(f"❌ BŁĄD SQL (get_dochod): {e}")
         return []
     finally:
         conn.close()

@@ -48,8 +48,9 @@ def _merge_variants(items: list, label_field: str) -> list:
     return merged
 
 
-def get_spend_trend(year_from: int, month_from: int, year_to: int, month_to: int) -> dict:
-    points = db.get_spend_trend(year_from, month_from, year_to, month_to)
+def get_spend_trend(year_from: int, month_from: int, year_to: int, month_to: int,
+                     cykliczna: bool | None = None) -> dict:
+    points = db.get_spend_trend(year_from, month_from, year_to, month_to, cykliczna)
     return {
         "points": points,
         "total_netto": round(sum(p["netto"] for p in points), 2),
@@ -122,7 +123,7 @@ def _contiguous_history(points: list) -> list:
     return list(reversed(result))
 
 
-def get_spend_forecast(months_ahead: int = 3) -> dict:
+def get_spend_forecast(months_ahead: int = 3, cykliczna: bool | None = None) -> dict:
     """
     Prosty, przejrzysty baseline — NIE model ML. Dane są bardzo nierówne
     (pojedyncze duże faktury potrafią zdominować miesiąc), dlatego wszędzie
@@ -138,9 +139,15 @@ def get_spend_forecast(months_ahead: int = 3) -> dict:
        bieżący "typowy" poziom kosztów, oczyszczony z sezonowych wahań.
     4. Prognoza kolejnych miesięcy = poziom × wskaźnik sezonowości tego
        miesiąca kalendarzowego.
+
+    `cykliczna`: None = wszystkie faktury, True = tylko kontrahenci oznaczeni
+    w KONTRAHENCI_CYKLICZNI (dużo stabilniejsza, przewidywalna historia — tu
+    ten baseline ma najwięcej sensu), False = tylko jednorazowe (z definicji
+    nieregularne — wskaźnik sezonowości/prognoza tu są dużo mniej wiarygodne,
+    ale nadal pokazywane transparentnie zamiast ukrywane).
     """
     today = date.today()
-    all_points = db.get_spend_trend(2000, 1, today.year, today.month)
+    all_points = db.get_spend_trend(2000, 1, today.year, today.month, cykliczna)
     history = _contiguous_history(all_points)
 
     if len(history) < 3:
@@ -209,3 +216,53 @@ def get_podkategoria_breakdown(year_from: int, month_from: int, year_to: int, mo
         i["pct"] = round(i["brutto"] / total_brutto * 100, 1) if total_brutto else 0.0
         del i["_raw_labels"]
     return {"items": items, "total_brutto": total_brutto}
+
+
+def get_dochod(year_from: int, month_from: int, year_to: int, month_to: int) -> dict:
+    """
+    Dochód (przychód netto − koszt netto) per dział, zsumowany za cały
+    wybrany okres — plus łączny wynik. "Łączny" liczy się TYLKO z działów,
+    które mają w tym oknie choćby jeden miesiąc przychodu w
+    Przychody.dbo.Przychod_Netto — większość działów dziś nie ma jeszcze
+    śledzonego przychodu (użytkownik uzupełnia je stopniowo, patrz
+    [[project_analityka_forecast]]), więc zwykła suma kosztów wszystkich
+    działów minus przychód tylko dwóch dałaby fałszywie ogromną "stratę".
+    Działy bez przychodu wracają osobno w `dzialy_bez_przychodu`, żeby było
+    jawne, czego jeszcze nie obejmuje "łącznie".
+    """
+    rows = db.get_dochod(year_from, month_from, year_to, month_to)
+
+    by_dzial: dict[str, dict] = {}
+    for r in rows:
+        entry = by_dzial.setdefault(r["dzial"], {"koszt_netto": 0.0, "przychod_netto": 0.0, "ma_przychod": False})
+        if r["koszt_netto"] is not None:
+            entry["koszt_netto"] += r["koszt_netto"]
+        if r["przychod_netto"] is not None:
+            entry["przychod_netto"] += r["przychod_netto"]
+            entry["ma_przychod"] = True
+
+    items = []
+    dzialy_bez_przychodu = []
+    total_koszt = total_przychod = 0.0
+    for dzial, e in by_dzial.items():
+        koszt = round(e["koszt_netto"], 2)
+        if not e["ma_przychod"]:
+            items.append({"dzial": dzial, "koszt_netto": koszt, "przychod_netto": None, "dochod": None})
+            dzialy_bez_przychodu.append(dzial)
+            continue
+        przychod = round(e["przychod_netto"], 2)
+        dochod = round(przychod - koszt, 2)
+        items.append({"dzial": dzial, "koszt_netto": koszt, "przychod_netto": przychod, "dochod": dochod})
+        total_koszt += koszt
+        total_przychod += przychod
+
+    items.sort(key=lambda i: (i["dochod"] is None, -(i["dochod"] or 0)))
+    dzialy_bez_przychodu.sort()
+
+    return {
+        "items": items,
+        "total_koszt_netto": round(total_koszt, 2),
+        "total_przychod_netto": round(total_przychod, 2),
+        "total_dochod": round(total_przychod - total_koszt, 2),
+        "dzialy_bez_przychodu": dzialy_bez_przychodu,
+    }

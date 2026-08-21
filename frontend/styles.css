@@ -707,3 +707,65 @@ body {
 .an-chart-box-tall {
   height: 420px;
 }
+
+.an-warning {
+  color: var(--danger);
+}
+
+.an-dochod-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.an-dochod-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--panel);
+}
+
+.an-dochod-card-total {
+  border: 2px solid var(--accent);
+  max-width: 320px;
+  margin: 12px 0;
+}
+
+.an-dochod-card-total h4 {
+  color: var(--accent);
+}
+
+.an-dochod-card h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.an-dochod-card p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.an-dochod-card .an-dochod-value {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.an-dochod-value.positive {
+  color: #166534;
+}
+
+.an-dochod-value.negative {
+  color: var(--danger);
+}
+
+.an-dochod-rest-heading {
+  font-size: 12px;
+  margin: 16px 0 6px;
+  color: var(--muted);
+  font-weight: 600;
+}
