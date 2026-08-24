@@ -18,16 +18,31 @@
   </header>
 
   <nav class="mailer-tabs">
-    <button type="button" class="mailer-tab active" data-tab="trend">Trend kosztów</button>
+    <button type="button" class="mailer-tab active" data-tab="przeglad">Przegląd</button>
+    <button type="button" class="mailer-tab" data-tab="trend">Trend kosztów</button>
     <button type="button" class="mailer-tab" data-tab="kontrahenci">Kontrahenci</button>
     <button type="button" class="mailer-tab" data-tab="dzialy">Działy</button>
     <button type="button" class="mailer-tab" data-tab="kategorie">Kategorie</button>
     <button type="button" class="mailer-tab" data-tab="dochod">Dochód</button>
+    <button type="button" class="mailer-tab" data-tab="dochod-trend">Trend wg działu</button>
   </nav>
 
   <main class="mailer-content">
 
-    <section id="tab-trend" class="mailer-tab-panel active">
+    <section id="tab-przeglad" class="mailer-tab-panel active">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Przegląd</h3>
+          <div class="mailer-section-actions">
+            <button type="button" id="btn-przeglad-refresh" class="btn">Odśwież</button>
+          </div>
+        </div>
+        <p id="przeglad-status" class="muted"></p>
+        <div id="przeglad-cards" class="an-dochod-cards"></div>
+      </div>
+    </section>
+
+    <section id="tab-trend" class="mailer-tab-panel">
       <div class="mailer-section">
         <div class="mailer-section-header">
           <h3>Trend kosztów w czasie</h3>
@@ -122,6 +137,13 @@
           <label>Dział
             <select id="kategorie-dzial-select"><option value="">— wszystkie —</option></select>
           </label>
+          <label>Rodzaj kosztów
+            <select id="kategorie-cykliczna-select">
+              <option value="">— wszystkie —</option>
+              <option value="true">Cykliczne</option>
+              <option value="false">Jednorazowe</option>
+            </select>
+          </label>
           <button type="button" id="btn-kategorie-refresh" class="btn btn-primary">Odśwież</button>
         </div>
         <p id="kategorie-status" class="muted"></p>
@@ -163,6 +185,56 @@
 
         <h4 class="an-dochod-rest-heading">Pozostałe działy (koszty wsparcia/ogólne, bez przychodu)</h4>
         <div id="dochod-table"></div>
+      </div>
+    </section>
+
+    <section id="tab-dochod-trend" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Trend miesięczny wg działu — porównanie lat</h3>
+        </div>
+        <p class="muted">Jeden dział na raz, miesiąc na osi X, jedna linia na rok — do porównania np. czerwca 2024
+          z czerwcem 2025 i 2026.</p>
+        <div class="mailer-policy-fields">
+          <label>Dział
+            <select id="dochod-trend-dzial-select"></select>
+          </label>
+          <label>Od
+            <input id="dochod-trend-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="dochod-trend-month-to" type="month">
+          </label>
+          <label class="mailer-checkbox-field">
+            <input id="dochod-trend-show-forecast" type="checkbox" checked>
+            Pokaż prognozę
+          </label>
+          <label>Miesięcy naprzód
+            <input id="dochod-trend-forecast-months" type="number" min="1" max="12" step="1" value="4">
+          </label>
+          <button type="button" id="btn-dochod-trend-refresh" class="btn btn-primary">Odśwież</button>
+        </div>
+        <p id="dochod-trend-status" class="muted"></p>
+        <p id="dochod-trend-forecast-status" class="muted"></p>
+
+        <h4 class="an-dochod-rest-heading">Przychód netto</h4>
+        <div class="an-chart-box"><canvas id="dochod-trend-przychod-chart"></canvas></div>
+
+        <h4 class="an-dochod-rest-heading">Dochód netto</h4>
+        <p id="dochod-trend-warning" class="muted"></p>
+        <div class="an-chart-box"><canvas id="dochod-trend-dochod-chart"></canvas></div>
+
+        <h4 class="an-dochod-rest-heading">Trafność prognozy — miesiące, które już mamy w danych</h4>
+        <p class="muted">Dla każdego miesiąca: co baseline przewidziałby, gdyby liczyć TYLKO z danych sprzed tego
+          miesiąca (bez podglądania przyszłości), zestawione z tym, co faktycznie wyszło.</p>
+        <div class="mailer-policy-fields">
+          <label>Ile miesięcy wstecz
+            <input id="dochod-backtest-months" type="number" min="1" max="24" step="1" value="6">
+          </label>
+          <button type="button" id="btn-dochod-backtest-refresh" class="btn">Odśwież trafność</button>
+        </div>
+        <div id="dochod-backtest-przychod-table"></div>
+        <div id="dochod-backtest-dochod-table"></div>
       </div>
     </section>
 

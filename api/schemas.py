@@ -349,6 +349,7 @@ class DochodItem(BaseModel):
     koszt_netto: float
     przychod_netto: float | None
     dochod: float
+    marza_pct: float | None
 
 
 class DochodResponse(BaseModel):
@@ -356,4 +357,67 @@ class DochodResponse(BaseModel):
     total_koszt_netto: float
     total_przychod_netto: float
     total_dochod: float
+    total_marza_pct: float | None
     dzialy_bez_przychodu: list[str]
+
+
+class DochodTrendYearSeries(BaseModel):
+    year: int
+    values: list[float | None]
+
+
+class DochodTrendResponse(BaseModel):
+    dzial: str
+    years: list[int]
+    koszt_by_year: list[DochodTrendYearSeries]
+    przychod_by_year: list[DochodTrendYearSeries]
+    dochod_by_year: list[DochodTrendYearSeries]
+
+
+class ForecastValuePoint(BaseModel):
+    year: int
+    month: int
+    value: float
+
+
+class DochodForecastSeries(BaseModel):
+    forecast: list[ForecastValuePoint]
+    seasonal_index: dict[str, float]
+    history_months: int
+    level: float
+
+
+class DochodForecastResponse(BaseModel):
+    dzial: str
+    przychod: DochodForecastSeries
+    dochod: DochodForecastSeries
+
+
+class DochodTrendTotalResponse(BaseModel):
+    dzialy: list[str]
+    years: list[int]
+    koszt_by_year: list[DochodTrendYearSeries]
+    przychod_by_year: list[DochodTrendYearSeries]
+    dochod_by_year: list[DochodTrendYearSeries]
+
+
+class DochodForecastTotalResponse(BaseModel):
+    dzialy: list[str]
+    przychod: DochodForecastSeries
+    dochod: DochodForecastSeries
+
+
+class BacktestItem(BaseModel):
+    year: int
+    month: int
+    actual: float
+    forecast: float
+    diff: float
+    diff_pct: float | None
+
+
+class DochodBacktestResponse(BaseModel):
+    dzial: str | None = None
+    dzialy: list[str] | None = None
+    przychod: list[BacktestItem]
+    dochod: list[BacktestItem]

@@ -1,202 +1,247 @@
-# Plan: Analityka (gałąź `analityka`)
+# Plan: Analityka (branch `analityka`, zmergowany do `main`)
 
-Roboczy plik z etapami. Odznaczamy/usuwamy pozycje na bieżąco w miarę wdrażania i
-weryfikowania. Zakres uzgodniony z użytkownikiem: trend kosztów w czasie, ranking
-kontrahentów, struktura wg działu (historyczna), kategoria/podkategoria — na bazie
-widoku `Faktury_Kosztowe_Zmapowane` (3609 wierszy, 2018-12–dziś, 706 kontrahentów,
-12 zmapowanych działów, KATEGORIA wypełniona w 77%, PODKATEGORIA w 47%).
-Wizualizacja: wykresy przez Chart.js (CDN). Domyślny zakres trendu: ostatnie 24
-miesiące, z możliwością rozszerzenia w UI.
+Roboczy plik z etapami. Szczegóły poszczególnych poprawek (bugi, dokładne
+zapytania SQL, uzasadnienia) są w historii commitów — tu tylko stan i to, co
+dalej.
 
-Poza zakresem tej rundy (świadomie pominięte): Kaucja (prawie nieużywana — 1
-niezerowy wiersz na 3609), analityka opóźnień w płatnościach na
-`FAKTURY_DO_ZAPLATY` (pole `CzyZaplacona` nigdy nie jest tam ustawiane na 1 —
-dane niewiarygodne do tego celu, do wyjaśnienia osobno), anomalie/skoki, nowi vs.
-stali kontrahenci.
+## Zrobione ✅
 
-## Etap 1 — Backend: agregacje SQL ✅
-- [x] `utils/database_manager.py`: `get_spend_trend(year_from, month_from, year_to,
-      month_to)` — GROUP BY rok/miesiąc na `Faktury_Kosztowe_Zmapowane`
-- [x] `get_top_kontrahenci(year_from, month_from, year_to, month_to, limit)` — SUM
-      brutto per kontrahent + osobna suma całkowita okresu (do liczenia %)
-- [x] `get_dzial_trend(year_from, month_from, year_to, month_to)` — GROUP BY
-      rok/miesiąc/dzial_docelowy
-- [x] `get_kategoria_breakdown(year_from, month_from, year_to, month_to, dzial=None)`
-      — GROUP BY KATEGORIA (COALESCE NULL/'' → "(brak kategorii)"), opcjonalny filtr
-      działu
-- [x] `get_podkategoria_breakdown(..., kategoria)` — jak wyżej, GROUP BY PODKATEGORIA
-      w ramach wybranej kategorii
-- [x] `core/analytics.py`: cienkie wrappery nad powyższym + liczenie % udziału
-- [x] Weryfikacja: uruchomienie funkcji na żywej bazie (same SELECT-y). Znaleziony i
-      naprawiony bug po drodze: `SUM(Kwota_Netto + Kwota_Vat)` w SQL gubił wiersze
-      z NULL w jednej z kolumn (1 wiersz NULL netto, 2 NULL VAT w ostatnich 24
-      mies. → różnica ~1318 zł); naprawione na
-      `SUM(ISNULL(Kwota_Netto,0) + ISNULL(Kwota_Vat,0))` we wszystkich 4 funkcjach.
-      Po poprawce: suma z `get_spend_trend` dla czerwca 2026 zgodna co do grosza z
-      `get_kosztowe_by_month`, a totale wszystkich 4 funkcji dla ostatnich 24 mies.
-      zgadzają się (6065329.09 zł, różnice tylko z zaokrągleń float).
+**Dashboard `/analityka.html`** (`core/analytics.py`, `api/routers/analytics.py`,
+`utils/database_manager.py`, `frontend/analityka.{html,js}`), 5 zakładek na
+widoku `Faktury_Kosztowe_Zmapowane`:
 
-## Etap 2 — API ✅
-- [x] `api/schemas.py`: modele odpowiedzi (SpendTrendResponse, KontrahentRank...,
-      DzialTrendResponse, KategoriaBreakdownResponse)
-- [x] `api/routers/analytics.py`: `GET /api/analytics/trend`,
-      `/kontrahenci`, `/dzialy-trend`, `/kategorie`, `/podkategorie`
-- [x] `api/main.py`: podłączenie routera
-- [x] Weryfikacja: `uvicorn` lokalnie (port 8010, poza kontenerem), wszystkie 4
-      endpointy przetestowane curlem na żywych danych — odpowiedzi poprawne
+- **Trend** — miesięczny trend kosztów (netto/VAT/brutto), filtr
+  wszystkie/cykliczne/jednorazowe (`CzyCykliczna` z `dbo.KONTRAHENCI_CYKLICZNI`,
+  55 kontrahentów oznaczonych), prosty baseline prognozy (mediana + wskaźnik
+  sezonowości — jawnie NIE model ML, patrz uzasadnienie w rozmowie
+  2026-08-20/21) z tym samym filtrem.
+- **Kontrahenci** — ranking TOP N wg brutto, filtr działu.
+- **Działy** — struktura kosztów wg `dzial_docelowy` w czasie (stacked bar).
+- **Kategorie** — 155 surowych wartości KATEGORIA scalone do 143 (normalizacja
+  polskich znaków/literówek, `core/analytics._merge_variants`), drill-down do
+  podkategorii, filtr działu.
+- **Dochód** — koszt netto vs. przychód netto (`Przychody.dbo.Przychod_Netto`,
+  cross-database query) per dział. Karta „Brandy łącznie" + 6 kart per brand
+  (CornerMarket, Hotel, RDS, Gastronomia, Automaty, Wspólne), posortowane od
+  najlepszego do najgorszego dochodu. Brak śledzonego przychodu = 0 zł (dochód
+  = −koszt), wszystkie działy wchodzą do sum. „Pozostałe działy" (koszty
+  wsparcia/ogólne, nigdy nie będą miały przychodu) — sama tabela Dział/Koszt,
+  posortowana malejąco, z sumą.
 
-## Etap 3 — Frontend ✅ (weryfikacja graficzna: użytkownik, w przeglądarce)
-- [x] `frontend/analityka.html`: nowa podstrona, 4 zakładki (Trend, Kontrahenci,
-      Działy, Kategorie), Chart.js z CDN, wzorowana na układzie `mailer.html`
-- [x] `frontend/analityka.js`: fetch + wykresy (linia dla trendu, słupki dla
-      rankingu kontrahentów, stacked bar dla działów, słupki z drill-down do
-      podkategorii dla kategorii). Poprawka po pierwszym podglądzie: „(brak
-      kategorii)” (29,6% wydatków) zostaje w tabeli, ale nie wchodzi na wykres —
-      jako największa pozycja spłaszczał do zera słupki wszystkich realnych
-      kategorii na wspólnej skali.
-- [x] `frontend/styles.css`: `.an-chart-box`/`.an-chart-box-tall` (reszta reużyta:
-      `mailer-page`, `mailer-tabs`, `dzial-breakdown-table`)
-- [x] Link nawigacyjny (ikona 📊) w `index.html` i `mailer.html` (+ odwrotny link do
-      mailera z analityki)
-- [x] Weryfikacja funkcjonalna (moja): lokalny headless test — 4 zakładki, filtr
-      działu, drill-down kategoria→podkategoria, zero błędów w konsoli JS.
-      **Weryfikacja graficzna (wygląd/UX) — robi użytkownik sam w przeglądarce**,
-      zgodnie z ustaleniem w tej rozmowie.
-- [x] Wdrożone do Dockera: `docker compose up --build -d`, kontener
-      `ocrr_invoice-api-1` przebudowany i działa na http://localhost:8000 —
-      `/analityka.html` i `/api/analytics/*` odpowiadają poprawnie.
+**Kluczowe fakty o danych, które trzeba pamiętać:**
+- Rzetelna, ciągła historia kosztów zaczyna się dopiero **2024-01** (wcześniej
+  pojedyncze, odosobnione wpisy z 2018/2023) — stąd domyślne zakresy „Od" w UI
+  i ostrzeżenia przy cofaniu zakresu wcześniej.
+- Login SQL aplikacji (`DB_USER`/`PYTHON`) ma dziś `SELECT` na `Faktury`,
+  `Przychody` i bazach źródłowych `Przychod_Netto` odpytuje (w tym „Sopocki
+  Zdroj") — każda NOWA baza źródłowa przychodu będzie wymagać dodania
+  uprawnień po stronie użytkownika (SSMS), inaczej cross-database query padnie
+  `permission denied`.
+- `KONTRAHENCI_CYKLICZNI` i `Przychod_Netto` to tabele/widoki zarządzane przez
+  użytkownika w SSMS — brak migracji w tym repo, żadnych zmian schematu nie
+  robimy stąd bezpośrednio (apka nie ma nawet `VIEW DEFINITION` na
+  `Faktury_Kosztowe_Zmapowane`).
 
-## Etap 3b — poprawki po pierwszym przeglądzie użytkownika ✅
-- [x] Kategoria/Podkategoria: 155 surowych wartości KATEGORIA scalone do 143 —
-      warianty różniące się tylko brakiem polskich znaków (np. „Częsci"/„Cześci"/
-      „Czesci"/„Części") łączone przez `core/analytics._merge_variants` +
-      `_normalize_label`. Drill-down do podkategorii poprawiony, żeby dociągał
-      WSZYSTKIE warianty scalonej kategorii (`db.get_podkategoria_breakdown`
-      przyjmuje teraz listę wariantów, nie jeden string).
-- [x] Kontrahenci: filtr „Dział" (dropdown, reużywa `/api/mailer/monthly/dzialy`)
-      — `db.get_top_kontrahenci`/`core.analytics.get_top_kontrahenci`/router
-      przyjmują opcjonalny `dzial`.
-- [x] Wdrożone do Dockera po każdej poprawce.
+Wszystko zcommitowane i wypchnięte na `origin/main` (ostatni commit: `288ac4e`).
 
-## Etap 3c — prosty baseline prognozy kosztów ✅
-Kontekst: użytkownik równolegle segmentuje bazę na koszty cykliczne/jednorazowe;
-to na razie NIE jest tego wykorzystuje — prosty statystyczny baseline na
-istniejącym `get_spend_trend`, jawnie NIE model ML (uzgodnione w rozmowie: dane
-są zbyt nierówne — pojedyncze duże faktury dominują miesiące — żeby ufać
-czarnej skrzynce).
-- [x] `core/analytics.py`: `_contiguous_history()` (najdłuższy ciągły ogon
-      historii miesiąc-do-miesiąca, żeby odległe pojedyncze wpisy z 2018/2023
-      nie zniekształcały sezonowości) + `get_spend_forecast(months_ahead=3)`:
-      wskaźnik sezonowości = mediana brutto danego miesiąca kalendarzowego /
-      mediana całej historii; poziom = mediana z ostatnich (do 12) miesięcy PO
-      odsezonowaniu; prognoza = poziom × wskaźnik. Mediana wszędzie (nie
-      średnia) — odporność na skoki.
-      Poprawka po pierwszym uruchomieniu: bieżący (niedokończony) miesiąc
-      wykryty i wykluczony ze statystyk (zostaje widoczny w historii, ale nie
-      zaniża poziomu/sezonowości) — inaczej sierpień 2026 (1 faktura, dane
-      częściowe) fałszywie wyglądał jak słaby miesiąc.
-- [x] `api/schemas.py` + `api/routers/analytics.py`: `GET /api/analytics/forecast?months_ahead=N`
-- [x] `frontend`: zakładka Trend — checkbox „Pokaż prognozę" + liczba miesięcy
-      naprzód, kropkowana linia doklejona do wykresu rzeczywistych kosztów,
-      status z liczbą miesięcy historii użytych do baseline'u
-- [x] Weryfikacja na żywych danych: 32 ciągłe miesiące historii (2024-01–2026-08;
-      pojedyncze wpisy z 2018-12 i 2023 poprawnie odcięte przez
-      `_contiguous_history`), sezonowość sensowna dla biznesu hotelarskiego
-      (szczyt czerwiec ×2.4, dołek luty ×0.58). Wdrożone do Dockera.
-- [x] Segmentacja po stronie użytkownika gotowa: tabela `dbo.KONTRAHENCI_CYKLICZNI`
-      (Nazwa_Kontrahenta PK, CzyCykliczna BIT, Uwagi, DataOznaczenia) +
-      `ALTER VIEW Faktury_Kosztowe_Zmapowane` z `LEFT JOIN` i
-      `COALESCE(kc.CzyCykliczna, 0) AS CzyCykliczna` — 55 kontrahentów
-      oznaczonych, 2041 faktur cyklicznych / 1565 jednorazowych na żywo.
-- [x] Dociągnięcie do backendu: `db.get_spend_trend(..., cykliczna=None|True|False)`
-      (filtr `AND CzyCykliczna = ?`), `core.analytics.get_spend_trend`/
-      `get_spend_forecast` przyjmują ten sam parametr, `GET /api/analytics/trend`
-      i `/forecast` mają query param `cykliczna`. Zweryfikowane na żywych
-      danych: cykliczne + jednorazowe = wszystkie, co do grosza
-      (4271606.93 + 3845441.89 = 8117048.82).
-- [x] Frontend: zakładka Trend — dropdown „Rodzaj kosztów" (wszystkie/cykliczne/
-      jednorazowe), filtruje jednocześnie wykres rzeczywistych kosztów i
-      prognozę. Cykliczne mają pełne 32 mies. ciągłej historii (z definicji —
-      to one były kryterium doboru), jednorazowe z natury bardziej nieregularne.
-- [x] Wdrożone do Dockera. **Nie zcommitowane jeszcze** — czeka na sygnał do
-      commitu/merge (jak poprzednio).
-- [x] Bug znaleziony przy pytaniu użytkownika „czemu styczeń 2026 > styczeń
-      2027 w prognozie": to NIE był błąd modelu (matematycznie prognoza
-      styczeń 2027 wychodzi WYŻEJ niż realny styczeń 2026 — sprawdzone
-      liczbowo), tylko błąd rysowania wykresu we `frontend/analityka.js`.
-      Backend prognozuje na nowo bieżący niedokończony miesiąc jako pierwszy
-      punkt prognozy (ta sama etykieta co ostatni realny punkt), a front tego
-      nie rozpoznawał — doklejał go jako DODATKOWĄ, zduplikowaną etykietę
-      miesiąca, przesuwając całą resztę prognozy (w tym styczeń) o jedną
-      pozycję na osi X. Naprawione: front wykrywa nakładający się miesiąc i
-      nie duplikuje etykiety. Wdrożone do Dockera.
+**Gałąź `Przychod`** (2026-08-24, od `main`@`288ac4e`) — 6. zakładka **„Trend wg
+działu"**: jeden dział na raz (dropdown, te same 6 brandów co w Dochodzie),
+wykres Przychód netto i osobno Dochód netto, miesiąc (Sty-Gru) na osi X, jedna
+linia na rok — porównanie np. czerwca 2024 vs 2025 vs 2026.
+`core.analytics.get_dochod_trend(dzial, ...)` (pivotuje płaskie wiersze
+`db.get_dochod(..., dzial=X)` w serie per rok), `GET /api/analytics/dochod-trend`.
+Domyślny zakres „Od" = 2015-01 (szeroki, nie 2024-01 jak w zakładce Dochód) —
+przychód, w odróżnieniu od kosztu, NIE jest ograniczony niekompletnością
+sprzed 2024 (dla Hotelu przychód sięga 2019). Ostrzeżenie o niekompletnym
+koszcie zostaje TYLKO przy wykresie Dochodu, nie Przychodu. Zweryfikowane na
+żywych danych: Hotel ma przychód od 2018/2019 do dziś, dochód dla lat
+2019-2023 wychodzi ≈ przychodowi (bo koszt w bazie za te lata jest prawie
+zerowy — zgodne z wiedzą o niekompletnych danych, nie błąd). Słupki dla lat
+przeszłych + linia dla bieżącego roku (na życzenie użytkownika, mixed
+bar+line w Chart.js).
 
-## Etap 3d — Dochód (przychód − koszt) wg działu ✅
-Użytkownik zbudował osobną bazę `Przychody` (tabela `Przychody.dbo.Przychod_Netto`:
-Dzial, Rok, Miesiac, KwotaNetto), agregującą przychody z tabel działowych.
-Na razie 2 działy (Hotel, Automaty), reszta dochodzi sukcesywnie.
-- [x] Uprawnienia: login `PYTHON` (`.env`/`DB_USER`) dostał `SELECT` na bazie
-      `Przychody` ORAZ na bazach źródłowych, z których korzysta widok
-      `Przychod_Netto` (np. „Sopocki Zdroj” — cross-database query rzuciła
-      błędem permission denied, dopóki nie nadano dostępu też tam).
-- [x] `utils/database_manager.get_dochod()`: JEDNO zapytanie, `FULL OUTER JOIN`
-      między `Faktury_Kosztowe_Zmapowane` (koszt netto per dział/miesiąc) a
-      `Przychody.dbo.Przychod_Netto` (cross-database, ten sam serwer SQL) —
-      brakująca strona wraca jako `None`, nie 0 (nie sugerować fałszywego
-      dochodu/straty dla działów bez śledzonego przychodu).
-- [x] `core/analytics.get_dochod()`: agreguje per dział za cały wybrany okres
-      + `total_*` liczone TYLKO z działów, które mają przychód (inaczej suma
-      kosztów 10 działów minus przychód 2 dałaby fałszywie ogromną „stratę”)
-      + `dzialy_bez_przychodu` jawnie wylistowane.
-- [x] `api/schemas.py` + `api/routers/analytics.py`: `GET /api/analytics/dochod`
-- [x] Frontend: nowa zakładka „Dochód” — tabela dział/koszt/przychód/dochód,
-      domyślny zakres Od=2024-01 (nie „ostatnie 24 mies.” jak gdzie indziej —
-      to próg, od którego historia kosztów jest ciągła), ostrzeżenie w UI gdy
-      zakres cofnięty przed 2024-01 (koszt niekompletny → dochód zawyżony).
-- [x] Weryfikacja na żywych danych (2024-01–2026-08): Hotel koszt 1 041 235,32 /
-      przychód 9 969 082,31 / dochód 8 927 846,99; Automaty koszt 887 594,63 /
-      przychód 926 519,04 / dochód 38 924,41. Zweryfikowana też pułapka: pełny
-      zakres od 2019 dawał total_dochod=18,58M (zawyżone, bo Hotel ma przychód
-      od 2019 ale koszt w bazie realnie dopiero od 2024) — stąd domyślny
-      zakres i ostrzeżenie w UI. Działa też cross-database z wnętrza
-      kontenera Docker (te same poświadczenia SQL).
-- [x] Rozbicie widoku (czysto front-end, `GET /api/analytics/dochod` bez zmian):
-      6 wymienionych działów (CornerMarket, Hotel, RDS, Gastronomia, Automaty,
-      Wspólne) dostaje własną kartę bilansu (`.an-dochod-card`, kolor
-      zielony/czerwony wg znaku dochodu), reszta działów zbiorczo w tabeli
-      „Pozostałe działy” poniżej (ta sama co dotąd, tylko odfiltrowana o tych
-      6). Zweryfikowane na żywych danych: wszystkie 6 nazwanych obecne w
-      wyniku, reszta (Kormoran, Konrad, Duba, „(brak działu)”, Aurena, DRUK)
-      poprawnie trafia do tabeli zbiorczej. Wdrożone do Dockera.
-- [x] Karta „Brandy łącznie” — suma koszt/przychód/dochód TYLKO z tych spośród
-      6 nazwanych brandów, które mają śledzony przychód (dziś: Hotel, RDS,
-      Automaty, Gastronomia, Wspólne — 5/6, brakuje CornerMarket), etykieta
-      pokazuje ile z 6 wchodzi w sumę. Tabela „Pozostałe działy” dostała
-      wiersz sumy (Koszt zawsze, Przychód/Dochód tylko jeśli któryś z reszty
-      ma dane) i sortowanie malejąco po koszcie (nie po dochodzie — większość
-      tych działów nie ma jeszcze przychodu). Wdrożone do Dockera.
-- [x] Zmiana semantyki na życzenie użytkownika: brak śledzonego przychodu = 0 zł
-      przychodu (nie "brak danych"), więc `dochod` jest ZAWSZE liczbą (ujemną,
-      gdy przychód nieznany — dochod = −koszt) i WSZYSTKIE działy wchodzą do
-      sum/kart (`core/analytics.get_dochod`, `api/schemas.DochodItem.dochod:
-      float`, nie `float | None`). `przychod_netto` samo w sobie zostaje
-      `None` gdy nietrackowane — dalej odróżnia "wiemy że 0" od "jeszcze nie
-      wiemy". Karta „Brandy łącznie” i wiersz sumy „Pozostałe działy” sumują
-      teraz wszystkich, kolor czerwony/zielony w każdym wierszu. Zweryfikowane
-      na żywych danych (2024-01–2026-08): suma `dochod` per dział = total_dochod
-      co do grosza (6 981 624,57 zł); przykład ujemnego: Wspólne
-      koszt 1 530 874,83 / przychód 237 422,34 / dochód **−1 293 452,49**.
-      Wdrożone do Dockera.
-- [x] Doprecyzowanie na życzenie użytkownika: „Pozostałe działy” (poza 6
-      głównymi brandami) nigdy nie będą generować przychodu (koszty
-      wsparcia/ogólne) — tabela zredukowana do Dział/Koszt (bez
-      Przychód/Dochód, które tam były bez sensu). „Łącznie” na górze strony
-      zmienione tak, żeby liczyć TYLKO 6 brandów (spójnie z kartą „Brandy
-      łącznie” — usunięty zdublowany tekst statusu, karta jest teraz jedynym
-      źródłem tej liczby). Wdrożone do Dockera.
+Doszła **prognoza przychodu i dochodu per dział** — ten sam baseline (mediana
++ sezonowość) co dla kosztów, wydzielony do współdzielonego rdzenia
+`core.analytics._median_seasonal_forecast(points, value_field, months_ahead)`
+(używany teraz przez `get_spend_forecast` I `get_dochod_forecast`).
+`get_dochod_forecast(dzial, months_ahead)` liczy przychód i dochód osobno —
+przychód pomija miesiące bez śledzonych danych (nie liczy ich jako 0, żeby
+nie zaniżać sezonowości), dochód liczy brak przychodu jako 0 (spójnie z
+resztą Dochodu). `GET /api/analytics/dochod-forecast?dzial=X&months_ahead=N`.
+Na wykresie: kropkowana prognoza doklejona do linii bieżącego roku (nie
+tworzy osobnej serii na kolejny rok — prognoza wykraczająca poza grudzień
+bieżącego roku jest po prostu pomijana, celowe uproszczenie). Zweryfikowane
+na żywych danych: Hotel 44 mies. historii przychodu, RDS/Gastronomia 30,
+Wspólne 24, Automaty 19 (przychód) / 31 (dochód, bo koszt sięga dalej niż
+śledzony przychód).
 
-## Etap 4 — domknięcie
-- [ ] README: krótki opis nowej podstrony „Analityka" (w tym prognoza)
-- [ ] Usunięcie tego pliku planu po potwierdzeniu przez użytkownika, że wszystko
-      działa zgodnie z oczekiwaniami (w tym wygląd — do potwierdzenia przez
-      użytkownika)
+Jeszcze na tej samej gałęzi doszły 3 rzeczy (na pytanie „co jeszcze możemy
+przygotować"):
+- **Marża %** (`dochod/przychod × 100`) — pole `marza_pct` w każdym
+  `DochodItem` + `total_marza_pct`, karty w zakładce Dochód mają teraz linię
+  „Marża". Pozwala porównać rentowność działów o różnej skali (Hotel 89,6%
+  vs Automaty 4,2% — w złotówkach nieporównywalne, w % owszem).
+- **Wynik całej firmy (suma 6 brandów) z prognozą** — nowa opcja
+  „— Wszystkie brandy (suma) —" w dropdownie działu na zakładce „Trend wg
+  działu". `core.analytics.get_dochod_trend_total`/`get_dochod_forecast_total`
+  (nowy helper `_sum_dochod_rows` sumuje wiersze z `db.get_dochod()` po liście
+  działów), `GET /api/analytics/dochod-trend-total?dzialy=A,B,C&...` i
+  `/dochod-forecast-total`. Lista działów przekazywana z frontu
+  (`DOCHOD_NAMED_DZIALY.join(",")`), nie zaszyta w backendzie.
+- **Kategorie z filtrem cykliczne/jednorazowe** — `CzyCykliczna` dociągnięty
+  do `get_kategoria_breakdown`/`get_podkategoria_breakdown` (dropdown „Rodzaj
+  kosztów" na zakładce Kategorie, ten sam wzorzec co na Trend/Kontrahenci).
+
+Uwaga wydajnościowa: pierwsze zapytanie cross-database (do `Przychody`) po
+starcie procesu bywa wolne (~60s w teście), kolejne już szybkie (~5s) —
+prawdopodobnie koszt nawiązania połączenia z serwerem źródłowym, nie błąd.
+
+Doszła też **zakładka „Przegląd"** — nowa PIERWSZA/domyślna zakładka,
+dashboard z 6 kartami, celowo BEZ nowych endpointów (tylko `Promise.all` nad
+istniejącymi: `/dochod`, `/trend`, `/dochod-forecast-total`):
+1. Ten miesiąc — cała firma (przychód/koszt/dochód/marża, suma 6 brandów)
+2. Prognoza na najbliższy miesiąc (cała firma)
+3. Koszty — zmiana miesiąc do miesiąca (kwota + %, strzałka)
+4. Cykliczne vs jednorazowe (% udziału, rok bieżący od stycznia)
+5. Ranking brandów wg dochodu (rok bieżący od stycznia)
+6. Uwagi (dynamicznie: działy bez śledzonego przychodu)
+
+Pułapka znaleziona przy weryfikacji na żywych danych: dla bieżącego miesiąca
+przychód bywa już kompletny (wpisywany zbiorczo), a koszt wciąż napływa (OCR
+faktur trwa) — dochód „tego miesiąca" może wyglądać sztucznie dobrze, dopóki
+miesiąc się nie zamknie księgowo. Naprawione: stałe zastrzeżenie przy karcie 1
+(nie warunkowe po dniu miesiąca — próbowałem tego, ale niekompletność kosztu
+zdarza się nawet w pełni zakończonych miesiącach, patrz lipiec 2026 wcześniej
+w tej rozmowie).
+
+Wdrożone do Dockera. **Nie zcommitowane jeszcze.**
+
+**Optymalizacja wydajności** (2026-08-24, na zgłoszenie "wszystko lekko
+spowalnia", pytanie o Redis): sprawdziłem — to NIE problem ilości danych
+(`FAKTURY_KOSZTOWE` 3609 wierszy, `Przychod_Netto` 184 — trywialne dla SQL
+Servera), więc Redis byłby złym narzędziem (rozwiązuje cache współdzielony
+między instancjami/drogie obliczenia — nie mamy ani jednego, ani drugiego).
+Prawdziwa przyczyna: `frontend/analityka.js` ładował WSZYSTKIE 7 zakładek
+(Przegląd sam w sobie robi 6 zapytań) równolegle przy każdym otwarciu strony
+— kilkanaście zapytań do bazy naraz, część cross-database do `Przychody`
+(te bywały wolne przy "rozgrzewaniu" — patrz notatka wyżej). Naprawione:
+**leniwe ładowanie zakładek** — `TAB_LOADERS` (mapa zakładka→funkcja
+ładująca) + `loadedTabs` (Set), spięte z istniejącym listenerem przełączania
+zakładek; dana zakładka ładuje się dopiero przy PIERWSZYM kliknięciu, potem
+zostaje w pamięci (kolejne kliknięcia nie odpytują bazy ponownie — tylko
+przycisk „Odśwież” robi to świadomie). Start strony robi teraz tylko
+`loadPrzeglad()` (bo to domyślna aktywna zakładka) zamiast 7 równoległych
+wywołań. Wdrożone do Dockera.
+
+Leniwe ładowanie NIE wystarczyło — użytkownik zgłosił, że nadal wolno, a po
+próbie zmierzenia okazało się gorzej: **żywy connection reset (10054)** przy
+zwykłym użyciu, nie tylko subiektywne spowolnienie. Zdiagnozowane i
+naprawione właściwie (`utils/database_manager.py`, `api/main.py`):
+
+- **Jedno trwałe połączenie SQL na cały czas życia procesu** zamiast
+  otwierania nowego w każdej z 14 funkcji (`_SharedConnectionHandle`,
+  `_shared_conn` moduł-level). Zmierzone: pierwsze `pyodbc.connect()` >100s,
+  pierwszy dostęp cross-database do `Przychody` na TYM połączeniu kolejne
+  >30s — ale KOLEJNE zapytania na tym samym połączeniu: 0,06–5s. Dawny
+  wzorzec (open/close per zapytanie) płacił ten koszt praktycznie za każdym
+  razem, bo sesja nigdy nie była "rozgrzana" dłużej niż jedno zapytanie.
+- **Lock (`_conn_lock`)** serializujący dostęp — pyodbc.Connection nie jest
+  bezpieczne przy równoległym użyciu z wielu wątków (FastAPI odpala sync
+  endpointy w threadpoolu); to też naprawiło żywy crash: dwa jednoczesne
+  zapytania cross-database (np. karty Przeglądu przez `Promise.all`) dawały
+  connection reset. Przy okazji naprawione też we `frontend/analityka.js` —
+  `loadPrzeglad()` odpytuje zapytania dotykające Przychody PO KOLEI, nie
+  równolegle (zapytania czysto kosztowe zostały w `Promise.all`).
+- **`_RetryingCursor`** — `.execute()` łapie zerwane połączenie DOKŁADNIE
+  tam, gdzie występuje (nie osobnym prefetch-checkiem `SELECT 1`, który nie
+  łapał realnego przypadku — sesja cross-database potrafi wygasnąć
+  niezależnie od żywotności bazowego połączenia), łączy się ponownie i
+  ponawia to samo zapytanie raz.
+- **Rozgrzewanie przy starcie kontenera** (`api/main.py`, wątek-daemon w
+  `@app.on_event("startup")`) — pierwszy prawdziwy użytkownik po restarcie
+  nie płaci już kosztu nawiązania połączenia; `/health` odpowiada od razu
+  (rozgrzewanie nie blokuje startu serwera).
+- **Heartbeat co 30s** (`db.start_keepalive()`) — kluczowe odkrycie: reset
+  występował NAWET na zwykłych zapytaniach niedotykających Przychody (np.
+  `/api/mailer/monthly/dzialy`), więc to nie problem cross-database, tylko
+  zwykły timeout bezczynnego połączenia (Docker NAT / firewall / sam SQL
+  Server ubija sesję stojącą bezczynnie zbyt długo — dokładna przyczyna poza
+  zasięgiem aplikacji, nie do zdiagnozowania stąd). Heartbeat nie dopuszcza
+  do bezczynności długiej na tyle, by to nastąpiło; jeśli mimo to złapie
+  reset, naprawia się cicho w tle, zanim realne zapytanie użytkownika do
+  niego dotrze. Zweryfikowane na żywo: zapytanie po symulowanej 90s przerwie
+  w ruchu — 1,45s (log pokazał, że heartbeat złapał i naprawił reset w tle
+  chwilę wcześniej, użytkownik tego nie widział).
+
+ODBC connection string dostał też `ConnectRetryCount=3;ConnectRetryInterval=5`
+(sterownik sam próbuje ponownie przy pewnych transient errorach, zanim
+w ogóle dojdzie do naszego retry na cursorze).
+
+**Poprawka #2 tego samego dnia** — użytkownik zgłosił, że mimo powyższego
+nadal "cały czas się coś wywala": w logach ~20-40 komunikatów "⚠️ Zapytanie
+SQL padło" pod rząd w niecałą sekundę, BEZ ani jednego sukcesu pomiędzy
+nimi (wcześniej: 1 komunikat = 1 natychmiastowy sukces). Zdiagnozowane:
+sterownik ODBC ma WŁASNĄ, wewnętrzną pulę połączeń (domyślnie włączoną) —
+`_connect_fresh()` po zerwanym połączeniu dostawał z tej puli KOLEJNE martwe
+połączenie zamiast prawdziwie nowego, więc każda próba naprawy natychmiast
+padała ponownie, tworząc kaskadę. Naprawione: `pyodbc.pooling = False` na
+starcie modułu (i tak zarządzamy jednym trwałym połączeniem sami —
+`_shared_conn` — pula sterownika była zbędna i szkodliwa) + jawne
+`_shared_conn.close()` starego połączenia przed reconnectem (nie liczyć na
+GC). Zweryfikowane: odtworzenie dokładnie tego samego scenariusza (seria
+równoległych zapytań jak przy realnym otwarciu strony) po tej poprawce dała
+tylko 2 pojedyncze ostrzeżenia, każde z natychmiastowym sukcesem — zero
+kaskady.
+
+Wdrożone do Dockera. **Nie zcommitowane jeszcze.**
+
+**Poprawka #3** — po poprawce #2 apka zawiesiła się CAŁKOWICIE na >12 minut
+(WSZYSTKIE zapytania do bazy, nawet zwykłe, bez żadnego logu błędu — 60s+
+curl bez odpowiedzi). Przyczyna: ani `pyodbc.connect()`, ani wykonanie
+zapytania nie miały jawnego timeoutu — jeśli sieć nie odpowiada (zamiast
+zwrócić szybki błąd), pyodbc/ODBC potrafi czekać W NIESKOŃCZONOŚĆ, trzymając
+`_conn_lock` zablokowany na zawsze (żadne kolejne zapytanie nigdy go nie
+dostanie). Naprawione: `pyodbc.connect(..., timeout=180)` +
+`conn.timeout = 90` (limit na wykonanie KAŻDEGO zapytania) — teraz "wisi bez
+końca" zawsze zamienia się w rzucony wyjątek, który `_RetryingCursor` już
+umie złapać i naprawić, zamiast permanentnie blokować całą aplikację.
+Wymagało ręcznego `docker compose restart` do przywrócenia działania (lock
+raz zawieszony na stałe nie naprawia się sam — to jedyny scenariusz, w
+którym trzeba ręcznie zrestartować kontener).
+
+Przy okazji: domyślny zakres „Trend wg działu" skrócony z 2015 na 2025 (na
+życzenie użytkownika, mniej danych = mniejsze obciążenie), i dodana
+**tabela trafności prognozy (backtest)** w tej samej zakładce —
+`core.analytics._backtest_forecast` liczy, co baseline przewidziałby dla
+każdego z ostatnich N miesięcy, używając WYŁĄCZNIE danych sprzed niego
+(walk-forward, bez podglądania przyszłości), zestawione z tym, co faktycznie
+wyszło. `GET /api/analytics/{forecast-backtest,dochod-backtest,
+dochod-backtest-total}`. Powód: użytkownik nie miał jak ocenić, czy model
+miał rację dla miesięcy, które już mamy w danych — teraz jest to wprost
+widoczne w tabeli (Hotel: blisko w lipcu +3,4%, wyraźnie zaniżał
+kwiecień-czerwiec +27% do +51%).
+
+## Dalszy plan działania
+
+- [ ] **Alerty mailowe przy odchyleniu od prognozy** — apka ma już działający
+      mailer; wymaga ustalenia progu (%), odbiorców i harmonogramu przed
+      implementacją.
+
+- [ ] **CornerMarket** — jedyny z 6 głównych brandów bez śledzonego przychodu w
+      `Przychod_Netto`. Jak użytkownik go doda, dashboard automatycznie go
+      uwzględni (nic nie trzeba zmieniać w kodzie).
+- [ ] **Pozostałe działy jako przychód** — jeśli któryś z „Pozostałych działów"
+      (dziś: Kormoran, Konrad, Duba, Aurena, DRUK, „brak działu") jednak
+      zacznie generować przychód, trzeba będzie dopisać go do
+      `DOCHOD_NAMED_DZIALY` we `frontend/analityka.js`, żeby dostał własną
+      kartę zamiast lądować w zbiorczej tabeli kosztowej.
+- [ ] **Rozdzielenie prognozy cykliczne/jednorazowe** — baseline już wspiera
+      filtr `cykliczna`, ale nie ma jeszcze osobnego, dedykowanego widoku
+      "prognoza tylko dla kosztów cyklicznych" (stabilniejsze dane, tu
+      faktyczny model ma najwięcej sensu). Do rozważenia jak segmentacja
+      kontrahentów się ustabilizuje.
+- [ ] **README** — krótki opis podstrony „Analityka" (wszystkie 6 zakładek,
+      w tym prognoza, dochód i trend wg działu) wciąż nie dodany.
+- [ ] **Sprzątnięcie tego pliku planu** — do usunięcia po potwierdzeniu przez
+      użytkownika, że całość (w tym wygląd, weryfikowany przez użytkownika w
+      przeglądarce) działa zgodnie z oczekiwaniami.

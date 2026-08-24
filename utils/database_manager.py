@@ -1,41 +1,191 @@
 import pyodbc
 import os
+import threading
+import time
 from datetime import date
 from dotenv import load_dotenv
 from decimal import Decimal
 load_dotenv()
 
+# Sterownik ODBC ma WŁASNĄ, wewnętrzną pulę połączeń (włączoną domyślnie) —
+# przy problemach z zerwanym połączeniem (patrz niżej) potrafiła oddawać
+# kolejne MARTWE połączenia z puli zamiast prawdziwie nowych, co dawało
+# kaskadę kilkudziesięciu "połączenie padło" pod rząd zamiast jednego udanego
+# reconnectu (złapane na żywo 2026-08-24). Ponieważ i tak zarządzamy jednym
+# trwałym połączeniem sami (patrz _shared_conn), pula sterownika jest zbędna
+# i tylko szkodzi — wyłączona. MUSI być ustawione przed pierwszym connect().
+pyodbc.pooling = False
+
+# Nawiązanie połączenia z tym serwerem jest bardzo drogie — zmierzone na
+# żywo: samo pyodbc.connect() potrafi zająć >100s, a pierwszy dostęp
+# cross-database do bazy Przychody (SQL Server negocjuje dostęp do baz
+# źródłowych innych działów) kolejne >30s. Dawniej każda z ~15 funkcji w tym
+# pliku otwierała i ZAMYKAŁA własne połączenie — więc ten koszt płaciło się
+# praktycznie przy każdym zapytaniu, bo sesja nigdy nie zdążyła zostać
+# "rozgrzana" dłużej niż jedno zapytanie (szczegóły pomiarów w
+# PLAN_ANALITYKA.md). Teraz jedno połączenie żyje przez cały czas życia
+# procesu i jest reużywane.
+_conn_lock = threading.Lock()
+_shared_conn = None
+
+
+class _RetryingCursor:
+    """
+    Cienki wrapper na pyodbc.Cursor: `.execute()` łapie zerwane połączenie
+    DOKŁADNIE tam, gdzie realnie występuje, łączy się ponownie i ponawia TO
+    SAMO zapytanie raz, zanim odda błąd dalej. Konieczne, bo zaobserwowane na
+    żywo: sesja cross-database do Przychody potrafi wygasnąć NIEZALEŻNIE od
+    żywotności bazowego połączenia — wcześniejszy wariant z osobnym
+    prefetch-checkiem (`SELECT 1`) przechodził, a właściwe zapytanie
+    cross-database i tak padało z 10054, więc błąd wracał do użytkownika, a
+    naprawa następowała dopiero przy KOLEJNYM, niepowiązanym zapytaniu.
+    Zna tylko execute/fetchall/fetchone — jedyne metody cursora używane w
+    tym pliku.
+    """
+
+    def __init__(self):
+        self._cursor = _shared_conn.cursor()
+
+    def execute(self, *args, **kwargs):
+        global _shared_conn
+        try:
+            self._cursor.execute(*args, **kwargs)
+        except pyodbc.Error:
+            print("⚠️ Zapytanie SQL padło (zerwane połączenie) — łączę ponownie i ponawiam.")
+            try:
+                _shared_conn.close()  # jawnie oddaj martwe połączenie, nie licz na GC
+            except Exception:
+                pass
+            _shared_conn = _connect_fresh()
+            self._cursor = _shared_conn.cursor()
+            self._cursor.execute(*args, **kwargs)
+        return self
+
+    def fetchall(self):
+        return self._cursor.fetchall()
+
+    def fetchone(self):
+        return self._cursor.fetchone()
+
+
+class _SharedConnectionHandle:
+    """
+    Owija współdzielone połączenie tak, żeby ~15 miejsc w tym pliku mogło
+    dalej pisać `conn = get_db_connection(); ...; conn.close()` bez żadnych
+    zmian — ale `.close()` NIE zamyka fizycznego połączenia, tylko zwalnia
+    `_conn_lock`. Lock (nie tylko reużycie połączenia) jest kluczowy:
+    pyodbc.Connection nie jest bezpieczne przy równoległym użyciu z wielu
+    wątków, a FastAPI odpala sync endpointy w threadpoolu — bez serializacji
+    dwa jednoczesne zapytania cross-database do Przychody dawały żywy
+    connection reset (10054) z serwera (złapane 2026-08-24).
+    """
+
+    def cursor(self):
+        return _RetryingCursor()
+
+    def commit(self):
+        _shared_conn.commit()
+
+    def close(self):
+        _conn_lock.release()
+
+
+def _connect_fresh():
+    """
+    Nazwa sterownika ODBC pochodzi z DB_DRIVER (.env) zamiast być zaszyta na
+    sztywno — na hoscie (CLI) to Driver 17, zainstalowany lokalnie; w
+    kontenerze Dockera doinstalowany jest Driver 18 (patrz Dockerfile),
+    więc docker-compose.yml nadpisuje DB_DRIVER na 18. Encrypt=no jawnie,
+    żeby zachowanie nie zależało od domyślnej wartości Encrypt, która różni
+    się między Driverem 17 (domyślnie off) i 18 (domyślnie on, wymaga
+    zaufanego certyfikatu) — bez tego Driver 18 odmówiłby połączenia z
+    serwerem SQL bez skonfigurowanego TLS.
+    """
+    server = os.getenv('DB_SERVER')
+    database = os.getenv('DB_NAME')
+    user = os.getenv('DB_USER')
+    password = os.getenv('DB_PASSWORD')
+    driver = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')
+    if not driver.startswith('{'):
+        driver = f'{{{driver}}}'
+    # BEZ jawnego timeout (i connect(), i conn.timeout) pyodbc/ODBC potrafi
+    # wisieć W NIESKOŃCZONOŚĆ, jeśli sieć po prostu nie odpowiada zamiast
+    # zwrócić błąd — złapane na żywo: cały kontener zablokowany na >12 minut
+    # na WSZYSTKICH zapytaniach (nawet niedotykających Przychody), bo lock
+    # nigdy się nie zwolnił. `timeout=` ogranicza samo nawiązanie połączenia,
+    # `conn.timeout` (ustawione niżej) ogranicza wykonanie KAŻDEGO zapytania
+    # na tym połączeniu — oba muszą zamienić "wisi w nieskończoność" w
+    # rzucony wyjątek, który _RetryingCursor już umie złapać i naprawić.
+    conn = pyodbc.connect(
+        f'DRIVER={driver};'
+        f'SERVER={server};'
+        f'DATABASE={database};'
+        f'UID={user};'
+        f'PWD={password};'
+        'Encrypt=no;'
+        # Sieć do tego serwera (zwłaszcza z wnętrza kontenera Docker) potrafi
+        # zrywać połączenie (10054) — te dwa parametry każą samemu
+        # sterownikowi ODBC próbować ponownie połączyć się przy zerwaniu,
+        # zanim w ogóle dojdzie do naszego Pythonowego retry na cursorze.
+        'ConnectRetryCount=3;'
+        'ConnectRetryInterval=5;',
+        timeout=180,
+    )
+    conn.timeout = 90
+    return conn
+
+
 def get_db_connection():
     """
-    Tworzy połączenie z bazą SQL. Nazwa sterownika ODBC pochodzi z DB_DRIVER
-    (.env) zamiast być zaszyta na sztywno — na hoscie (CLI) to Driver 17,
-    zainstalowany lokalnie; w kontenerze Dockera doinstalowany jest Driver 18
-    (patrz Dockerfile), więc docker-compose.yml nadpisuje DB_DRIVER na 18.
-    Encrypt=no jawnie, żeby zachowanie nie zależało od domyślnej wartości
-    Encrypt, która różni się między Driverem 17 (domyślnie off) i 18
-    (domyślnie on, wymaga zaufanego certyfikatu) — bez tego Driver 18
-    odmówiłby połączenia z serwerem SQL bez skonfigurowanego TLS.
+    Zwraca uchwyt do współdzielonego, długo żyjącego połączenia (patrz
+    _SharedConnectionHandle) zamiast nawiązywać nowe za każdym razem. Blokuje
+    na czas operacji — zwolnienie locka dzieje się w `conn.close()`
+    wywoływanym przez każdą z funkcji poniżej w bloku `finally`, więc każde
+    wywołanie tej funkcji MUSI kończyć się odpowiadającym `.close()`, inaczej
+    lock zostanie zablokowany na stałe.
+
+    Odporność na zerwane połączenie NIE jest tu (prefetch-check typu
+    `SELECT 1` nie łapał realnego przypadku — patrz _RetryingCursor) — dzieje
+    się przy właściwym zapytaniu, w cursorze zwracanym przez
+    `_SharedConnectionHandle.cursor()`.
     """
+    global _shared_conn
+    _conn_lock.acquire()
     try:
-        server = os.getenv('DB_SERVER')
-        database = os.getenv('DB_NAME')
-        user = os.getenv('DB_USER')
-        password = os.getenv('DB_PASSWORD')
-        driver = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')
-        if not driver.startswith('{'):
-            driver = f'{{{driver}}}'
-        conn = pyodbc.connect(
-            f'DRIVER={driver};'
-            f'SERVER={server};'
-            f'DATABASE={database};'
-            f'UID={user};'
-            f'PWD={password};'
-            'Encrypt=no;'
-        )
-        return conn
+        if _shared_conn is None:
+            _shared_conn = _connect_fresh()
+        return _SharedConnectionHandle()
     except Exception as e:
+        _conn_lock.release()
         print(f"❌ BŁĄD POŁĄCZENIA Z BAZĄ SQL: {e}")
         return None
+
+
+def _keepalive_loop(interval_seconds):
+    """
+    Co `interval_seconds` odpytuje `SELECT 1` na współdzielonym połączeniu.
+    Złapane na żywo: reset (10054) występował nawet na zwykłych zapytaniach
+    NIEDOTYKAJĄCYCH Przychody (np. `/api/mailer/monthly/dzialy`) — to nie
+    problem cross-database, tylko zwykły timeout bezczynnego połączenia
+    (Docker NAT / firewall / sam SQL Server ubija sesję stojącą bezczynnie
+    zbyt długo). Bez tego pętli każda dłuższa przerwa w ruchu = kolejne
+    >100s na odbudowanie połączenia przy następnym realnym zapytaniu.
+    Uruchamiana jako wątek-daemon z api/main.py przy starcie.
+    """
+    while True:
+        time.sleep(interval_seconds)
+        conn = get_db_connection()
+        if conn:
+            try:
+                conn.cursor().execute("SELECT 1")
+            except Exception:
+                pass
+            finally:
+                conn.close()
+
+
+def start_keepalive(interval_seconds=30):
+    threading.Thread(target=_keepalive_loop, args=(interval_seconds,), daemon=True).start()
 
 # --- TABELA 1: FAKTURY_KOSZTOWE (Zastępuje CSV - Tryby T i N) ---
 
@@ -437,9 +587,9 @@ def get_dzial_trend(year_from, month_from, year_to, month_to):
         conn.close()
 
 
-def get_kategoria_breakdown(year_from, month_from, year_to, month_to, dzial=None):
+def get_kategoria_breakdown(year_from, month_from, year_to, month_to, dzial=None, cykliczna=None):
     """Suma brutto per KATEGORIA w oknie, opcjonalnie zawężona do jednego
-    dzial_docelowy — zakładka „Kategorie” analityki."""
+    dzial_docelowy i/lub cykliczne/jednorazowe — zakładka „Kategorie” analityki."""
     date_from, date_to = _month_range_bounds(year_from, month_from, year_to, month_to)
     conn = get_db_connection()
     if not conn:
@@ -451,6 +601,9 @@ def get_kategoria_breakdown(year_from, month_from, year_to, month_to, dzial=None
         if dzial:
             where += " AND dzial_docelowy = ?"
             params.append(dzial)
+        if cykliczna is not None:
+            where += " AND CzyCykliczna = ?"
+            params.append(1 if cykliczna else 0)
         cursor.execute(
             "SELECT COALESCE(NULLIF(LTRIM(RTRIM(KATEGORIA)), ''), '(brak kategorii)') AS kategoria, "
             "SUM(ISNULL(Kwota_Netto,0) + ISNULL(Kwota_Vat,0)) AS brutto, COUNT(*) AS cnt "
@@ -471,7 +624,7 @@ def get_kategoria_breakdown(year_from, month_from, year_to, month_to, dzial=None
         conn.close()
 
 
-def get_podkategoria_breakdown(year_from, month_from, year_to, month_to, kategoria_variants, dzial=None):
+def get_podkategoria_breakdown(year_from, month_from, year_to, month_to, kategoria_variants, dzial=None, cykliczna=None):
     """Jak get_kategoria_breakdown, ale drill-down w PODKATEGORIA w ramach
     wybranej KATEGORIA. `kategoria_variants` to LISTA surowych wartości
     KATEGORIA (nie jedna etykieta) — core/analytics.py scala warianty tej
@@ -493,6 +646,9 @@ def get_podkategoria_breakdown(year_from, month_from, year_to, month_to, kategor
         if dzial:
             where += " AND dzial_docelowy = ?"
             params.append(dzial)
+        if cykliczna is not None:
+            where += " AND CzyCykliczna = ?"
+            params.append(1 if cykliczna else 0)
         cursor.execute(
             "SELECT COALESCE(NULLIF(LTRIM(RTRIM(PODKATEGORIA)), ''), '(brak podkategorii)') AS podkategoria, "
             "SUM(ISNULL(Kwota_Netto,0) + ISNULL(Kwota_Vat,0)) AS brutto, COUNT(*) AS cnt "
@@ -513,7 +669,7 @@ def get_podkategoria_breakdown(year_from, month_from, year_to, month_to, kategor
         conn.close()
 
 
-def get_dochod(year_from, month_from, year_to, month_to):
+def get_dochod(year_from, month_from, year_to, month_to, dzial=None):
     """
     Zestawienie koszt netto / przychód netto per dział i miesiąc — łączy
     (cross-database, w jednym zapytaniu na tym samym serwerze SQL)
@@ -528,6 +684,9 @@ def get_dochod(year_from, month_from, year_to, month_to):
     jako 0 — 0 sugerowałoby fałszywy dochód/stratę, podczas gdy naprawdę nie
     mamy tych danych. Odróżnianie „brak danych” od „zero” zostawione
     core/analytics.py.
+
+    Opcjonalny `dzial` (filtr na obu CTE) — zawęża do jednego działu, np. dla
+    trendu miesięcznego z porównaniem lat (patrz get_dochod_trend).
     """
     date_from, date_to = _month_range_bounds(year_from, month_from, year_to, month_to)
 
@@ -543,22 +702,30 @@ def get_dochod(year_from, month_from, year_to, month_to):
         return []
     try:
         cursor = conn.cursor()
+        koszty_where = "WHERE Data_Wystwawienia >= ? AND Data_Wystwawienia < ?"
+        przychody_where = "WHERE (Rok * 100 + Miesiac) >= ? AND (Rok * 100 + Miesiac) <= ?"
+        params = [date_from, date_to, start_key, end_key]
+        if dzial:
+            koszty_where += " AND COALESCE(NULLIF(LTRIM(RTRIM(dzial_docelowy)), ''), '(brak działu)') = ?"
+            przychody_where += " AND Dzial = ?"
+            params = [date_from, date_to, dzial, start_key, end_key, dzial]
+
         cursor.execute(
-            """
+            f"""
             WITH koszty AS (
                 SELECT
                     COALESCE(NULLIF(LTRIM(RTRIM(dzial_docelowy)), ''), '(brak działu)') AS Dzial,
                     YEAR(Data_Wystwawienia) AS Rok, MONTH(Data_Wystwawienia) AS Miesiac,
                     SUM(ISNULL(Kwota_Netto, 0)) AS Koszt_Netto
                 FROM Faktury_Kosztowe_Zmapowane
-                WHERE Data_Wystwawienia >= ? AND Data_Wystwawienia < ?
+                {koszty_where}
                 GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(dzial_docelowy)), ''), '(brak działu)'),
                          YEAR(Data_Wystwawienia), MONTH(Data_Wystwawienia)
             ),
             przychody AS (
                 SELECT Dzial, Rok, Miesiac, SUM(KwotaNetto) AS Przychod_Netto
                 FROM Przychody.dbo.Przychod_Netto
-                WHERE (Rok * 100 + Miesiac) >= ? AND (Rok * 100 + Miesiac) <= ?
+                {przychody_where}
                 GROUP BY Dzial, Rok, Miesiac
             )
             SELECT
@@ -572,7 +739,7 @@ def get_dochod(year_from, month_from, year_to, month_to):
                 ON k.Dzial = p.Dzial AND k.Rok = p.Rok AND k.Miesiac = p.Miesiac
             ORDER BY Rok, Miesiac, Dzial
             """,
-            (date_from, date_to, start_key, end_key),
+            params,
         )
         results = []
         for row in cursor.fetchall():
