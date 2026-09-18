@@ -1,0 +1,24 @@
+# Override na montowanie danych z Qnapa przez CIFS zamiast bind-mounta z
+# hosta — używać, gdy dysk sieciowy zmapowany na literę (np. I: na Windows)
+# nie jest widoczny wewnątrz WSL2, mimo że Eksplorator widzi go normalnie.
+#
+# Uruchomienie razem z głównym plikiem:
+#   docker compose -f docker-compose.yml -f docker-compose.qnap.yml up -d --force-recreate
+#
+# Powrót do zwykłego bind-mounta: zwykłe "docker compose up -d" (bez -f
+# docker-compose.qnap.yml) — nic nie trzeba edytować ani cofać w gicie.
+#
+# Wymaga w .env: QNAP_USER, QNAP_PASSWORD, QNAP_DEVICE (np. //192.168.30.11/Faktury).
+services:
+  api:
+    volumes:
+      - qnap_data:/data
+      - ./json:/app/json
+
+volumes:
+  qnap_data:
+    driver: local
+    driver_opts:
+      type: cifs
+      o: "username=${QNAP_USER},password=${QNAP_PASSWORD},vers=3.0"
+      device: "${QNAP_DEVICE}"
