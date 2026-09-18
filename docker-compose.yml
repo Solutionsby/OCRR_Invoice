@@ -21,6 +21,14 @@ services:
       # dokładnie podfolder pełni jaką rolę (KSeF/inne/EURO/cel) wybiera się
       # już z poziomu przeglądarki (⚙️ w sidebarze), bez zmian tutaj.
       - ${HOST_DATA_DIR:-.}:/data
+      # Alternatywa dla powyższego bind-mounta: montowanie udziału Qnap (SMB/CIFS)
+      # bezpośrednio jako wolumin Dockera — potrzebne, gdy dysk sieciowy zmapowany
+      # na literę (np. I:) nie jest widoczny wewnątrz WSL2 (Docker Desktop na
+      # Windows nie widzi wtedy zawartości mimo że Eksplorator widzi normalnie).
+      # Żeby użyć: zakomentuj linię ${HOST_DATA_DIR:-.}:/data powyżej, odkomentuj
+      # "- qnap_data:/data" poniżej oraz sekcję "volumes:" na końcu pliku, i ustaw
+      # w .env: QNAP_USER, QNAP_PASSWORD, QNAP_DEVICE (np. //192.168.30.11/Faktury).
+      # - qnap_data:/data
       # json/ (settings.json, patterns.json, knowledge_base.json,
       # dzial_kategoria.json) jest czytany ścieżkami względnymi wobec CWD
       # (= WORKDIR /app), więc montujemy go osobno pod /app, nie pod /data.
@@ -37,3 +45,13 @@ services:
     # Jeśli DB_SERVER / SMTP_SERVER w .env wskazują na "localhost" — z
     # wnętrza kontenera trzeba je zmienić na host.docker.internal (na
     # Docker Desktop dla macOS działa to bez dodatkowej konfiguracji).
+
+# Odkomentuj razem z "- qnap_data:/data" powyżej, żeby montować udział Qnap
+# przez CIFS zamiast bind-mounta z hosta (patrz komentarz przy volumes: api).
+# volumes:
+#   qnap_data:
+#     driver: local
+#     driver_opts:
+#       type: cifs
+#       o: "username=${QNAP_USER},password=${QNAP_PASSWORD},vers=3.0"
+#       device: "${QNAP_DEVICE}"
