@@ -13,6 +13,7 @@ from api.routers import search as search_router
 from api.routers import mailer as mailer_router
 from api.routers import folders as folders_router
 from api.routers import analytics as analytics_router
+from api.routers import hotel as hotel_router
 
 ensure_dirs()
 
@@ -69,6 +70,7 @@ app.include_router(search_router.router)
 app.include_router(mailer_router.router)
 app.include_router(folders_router.router)
 app.include_router(analytics_router.router)
+app.include_router(hotel_router.router)
 
 
 @app.get("/health")

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hotel — OCRR Invoice</title>
+<link rel="stylesheet" href="/styles.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="toast" class="toast hidden"></div>
+
+<div class="mailer-page">
+  <header class="mailer-page-header">
+    <a href="/" class="btn-icon" title="Powrót do faktur">← Faktury</a>
+    <h1>Hotel</h1>
+    <a href="/analityka.html" class="btn-icon" title="Analityka">📊</a>
+    <a href="/mailer.html" class="btn-icon" title="Mailer — przypomnienia i raporty">📧</a>
+  </header>
+
+  <nav class="mailer-tabs">
+    <button type="button" class="mailer-tab active" data-tab="hotel">Hotel</button>
+    <button type="button" class="mailer-tab" data-tab="platnosci">Płatności</button>
+    <button type="button" class="mailer-tab" data-tab="rekordy">Rekordy</button>
+  </nav>
+
+  <main class="mailer-content">
+
+    <section id="tab-hotel" class="mailer-tab-panel active">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Hotel — sprzedaż wg pozycji</h3>
+        </div>
+        <p class="muted">Źródło: system hotelowy (paragony/faktury, baza MongoDB), nie SQL Server — osobne dane od
+          reszty analityki. Anulacje i korekty są już wliczone (mają ujemne kwoty w źródle), więc sumy są netto z
+          uwzględnieniem zwrotów.</p>
+        <div class="mailer-policy-fields">
+          <label>Od
+            <input id="hotel-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="hotel-month-to" type="month">
+          </label>
+          <label>Kategoria
+            <select id="hotel-kategoria-select"><option value="">— wszystkie —</option></select>
+          </label>
+          <button type="button" id="btn-hotel-refresh" class="btn btn-primary">Odśwież</button>
+        </div>
+        <p id="hotel-status" class="muted"></p>
+        <div class="an-chart-box"><canvas id="hotel-trend-chart"></canvas></div>
+
+        <h4 class="an-dochod-rest-heading">Sprzedaż wg kategorii</h4>
+        <div id="hotel-category-table"></div>
+
+        <h4 class="an-dochod-rest-heading">Co się sprzedawało (TOP 15 na wykresie, pełna lista w tabeli)</h4>
+        <div class="an-chart-box an-chart-box-tall"><canvas id="hotel-breakdown-chart"></canvas></div>
+        <div id="hotel-breakdown-table"></div>
+      </div>
+    </section>
+
+    <section id="tab-platnosci" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Płatności — gotówka / przelew / karta</h3>
+        </div>
+        <p class="muted">Źródło: system hotelowy (baza MongoDB), po deduplikacji — te same dane co zakładka Hotel,
+          rozbite wg formy płatności.</p>
+        <div class="mailer-policy-fields">
+          <label>Od
+            <input id="platnosci-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="platnosci-month-to" type="month">
+          </label>
+          <button type="button" id="btn-platnosci-refresh" class="btn btn-primary">Odśwież</button>
+        </div>
+        <p id="platnosci-status" class="muted"></p>
+        <div class="an-chart-box"><canvas id="platnosci-chart"></canvas></div>
+
+        <h4 class="an-dochod-rest-heading">Razem w wybranym zakresie</h4>
+        <div id="platnosci-totals-table"></div>
+
+        <h4 class="an-dochod-rest-heading">Wg miesiąca</h4>
+        <div id="platnosci-months-table" class="rekordy-table-wrap"></div>
+      </div>
+    </section>
+
+    <section id="tab-rekordy" class="mailer-tab-panel">
+      <div class="mailer-section">
+        <div class="mailer-section-header">
+          <h3>Rekordy — przegląd i usuwanie duplikatów</h3>
+        </div>
+        <p class="muted">Surowe wiersze z bazy hotelowej (MongoDB), bez deduplikacji. Wiersze oznaczone jako
+          "Duplikat" to takie, które zostałyby odrzucone przy liczeniu wykresu Hotel (bo w tym samym oknie istnieje
+          nowszy zapis tego samego paragonu/pozycji) — sprawdź ręcznie i skasuj, jeśli faktycznie to powtórka.
+          Usuwanie jest nieodwracalne.</p>
+        <div class="mailer-policy-fields">
+          <label>Od
+            <input id="rekordy-month-from" type="month">
+          </label>
+          <label>Do
+            <input id="rekordy-month-to" type="month">
+          </label>
+          <label>Szukaj (nr paragonu / nazwa)
+            <input id="rekordy-search" type="text" placeholder="np. P 93/08/2026">
+          </label>
+          <label class="mailer-checkbox-field">
+            <input id="rekordy-only-duplicates" type="checkbox" checked>
+            Tylko duplikaty
+          </label>
+          <button type="button" id="btn-rekordy-refresh" class="btn btn-primary">Odśwież</button>
+        </div>
+        <p id="rekordy-status" class="muted"></p>
+        <div id="rekordy-table" class="rekordy-table-wrap"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="/hotel.js"></script>
+</body>
+</html>

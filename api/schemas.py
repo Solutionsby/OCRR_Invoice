@@ -421,3 +421,89 @@ class DochodBacktestResponse(BaseModel):
     dzialy: list[str] | None = None
     przychod: list[BacktestItem]
     dochod: list[BacktestItem]
+
+
+class HotelSalesTrendPoint(BaseModel):
+    year: int
+    month: int
+    brutto: float
+    netto: float
+    count: int
+
+
+class HotelSalesTrendResponse(BaseModel):
+    points: list[HotelSalesTrendPoint]
+    total_brutto: float
+    total_netto: float
+    total_count: int
+
+
+class HotelSalesBreakdownItem(BaseModel):
+    nazwa: str
+    kategoria: str
+    brutto: float
+    count: int
+    pct: float
+
+
+class HotelSalesCategoryItem(BaseModel):
+    kategoria: str
+    brutto: float
+    count: int
+    pct: float
+
+
+class HotelSalesBreakdownResponse(BaseModel):
+    items: list[HotelSalesBreakdownItem]
+    total_brutto: float
+    categories: list[HotelSalesCategoryItem]
+
+
+class HotelPaymentMethodAmount(BaseModel):
+    brutto: float
+    count: int
+
+
+class HotelPaymentMonthPoint(BaseModel):
+    year: int
+    month: int
+    methods: dict[str, HotelPaymentMethodAmount]
+    total_brutto: float
+    total_count: int
+
+
+class HotelPaymentMethodTotal(BaseModel):
+    method: str
+    brutto: float
+    count: int
+    pct: float
+
+
+class HotelPaymentMethodsResponse(BaseModel):
+    months: list[HotelPaymentMonthPoint]
+    totals: list[HotelPaymentMethodTotal]
+    total_brutto: float
+
+
+class HotelRecordItem(BaseModel):
+    id: str
+    nrParagonu: str
+    numerFaktury: str
+    nazwa: str
+    kwotaBrutto: float
+    kwotaNetto: float
+    typDokumentu: str
+    formaPatnosci: str
+    dataWystawienia: str
+    createdAt: str
+    is_duplicate: bool
+
+
+class HotelRecordsResponse(BaseModel):
+    records: list[HotelRecordItem]
+    total_count: int
+    duplicate_count: int
+
+
+class HotelDeleteResponse(BaseModel):
+    status: str

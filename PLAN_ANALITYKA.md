@@ -221,15 +221,116 @@ miał rację dla miesięcy, które już mamy w danych — teraz jest to wprost
 widoczne w tabeli (Hotel: blisko w lipcu +3,4%, wyraźnie zaniżał
 kwiecień-czerwiec +27% do +51%).
 
+## Etap: zakładka Hotel (MongoDB) — 2026-08-25 ✅
+
+Nowe źródło danych: `MONGO_URI` w `.env` → baza `priceOptimizer`, kolekcja
+`incomes` (paragony/faktury/anulacje/korekty systemu hotelowego, 4801 dok.,
+2026-01 do dziś). Osobna technologia (MongoDB, nie SQL Server) — `pymongo`
+dodany do `requirements.txt`, nowy moduł `utils/mongo_manager.py`
+(pojedynczy `MongoClient`, bezpieczny wielowątkowo out-of-the-box — bez
+locków/heartbeatów jak dla pyodbc) + `core/hotel_analytics.py`.
+
+- Nazwy pozycji sprzedaży (`nazwa`) mają te same problemy co KATEGORIA w SQL
+  (literówki, dopiski w nawiasach) — `_normalize_product_name` scala 65→43
+  pozycje: trailing kropka, nawiasowy dopisek (status/referencja), i
+  wszystkie warianty „Zadatek ..." (mają osadzone daty pobytu, unikalne per
+  rezerwacja) pod jedną etykietę.
+- Anulacje/korekty mają już ujemne kwoty w źródle — zwykłe SUM daje poprawny
+  wynik netto, bez potrzeby filtrowania `typDokumentu` (zweryfikowane: suma
+  per-typ zgadza się z sumą całkowitą co do grosza).
+- `GET /api/hotel/sales-trend`, `/sales-breakdown`. Nowa zakładka „Hotel":
+  trend + wykres/tabela TOP pozycji (89% to „Usługa zakwaterowania", reszta:
+  parking, śniadania, rowery, zadatki).
+- Znalezione przy okazji, NIE zbudowane (poza zakresem tej rundy — użytkownik
+  wybrał start od `incomes`): `dailyhotelstats` (dzienna obsada/ADR/RevPAR,
+  historia od **2015**) i `reservations` (13 467 rezerwacji, kanał sprzedaży,
+  typ pokoju) — dobra baza pod przyszłe „plany sprzedażowe"/obłożenie.
+  `hotellists` dodatkowo śledzi 13 konkurencyjnych hoteli w Trójmieście
+  (rate shopping) — osobny temat, nie sprzedaż.
+
+Wdrożone do Dockera. **Nie zcommitowane jeszcze.**
+
+**Kategorie pozycji sprzedaży** (2026-08-26) — użytkownik chciał móc odfiltrować
+np. wszystko związane z rowerem jedną etykietą zamiast pięciu osobnych pozycji.
+`core/hotel_analytics._CATEGORY_RULES` — ręczna mapa znormalizowana nazwa →
+kategoria (dziś tylko "Rowery": Rower 24"/20", Rower 28"/26", Rower z
+fotelikiem, Wypożyczenie roweru, Kask — Płaszcz przeciwdeszczowy świadomie
+WYŁĄCZONY, użytkownik zdecydował że nie należy do tej kategorii mimo że to też
+akcesorium rowerowe), wszystko nieprzypisane ląduje w "Inne". Rozszerzanie:
+dopisać kolejne wpisy do `_CATEGORY_RULES`, nic więcej nie trzeba zmieniać.
+`get_sales_breakdown` zwraca teraz `kategoria` per pozycja + osobną listę
+`categories` (suma/count/pct per kategoria). Frontend: nowa tabela "Sprzedaż
+wg kategorii" nad breakdownem + dropdown "Kategoria" na zakładce Hotel, filtruje
+wykres/tabelę pozycji po stronie klienta (bez dodatkowego zapytania — dane już
+są w jednej odpowiedzi `/sales-breakdown`).
+
+## Etap: dedup danych Mongo + Płatności/Rekordy + wydzielenie strony Hotel — 2026-09-18 ✅
+
+**Problem:** wykres Hotel pokazywał sierpień 2026 na >1,06 mln zł zamiast
+realnych ~552 tys. Przyczyna: system hotelowy synchronizuje `incomes`
+okresowymi pełnymi eksportami, które nakładają się oknem czasowym (np. sync
+25.08 objął 22.06-23.08, kolejny 01.09 cały sierpień od nowa) — te same
+dokumenty trafiają do bazy drugi raz jako nowe wiersze (inny `_id`/`lp`).
+
+- `utils/mongo_manager._dedupe_incomes` — klastruje `createdAt` w "przebiegi
+  synchronizacji" (odstęp ≥1h = nowy przebieg; realne dane mają odstępy albo
+  <15s w obrębie jednego przebiegu, albo >6 dni między przebiegami, więc
+  próg jest bezpieczny). Klucz tożsamości: `nrParagonu`, a gdy brak — pole
+  **`numerFaktury`** (osobne, prawdziwe pole w źródle — pierwsza wersja
+  dopasowywała po treści, co przeoczało część duplikatów; poprawione po
+  uwadze użytkownika). Oba pola mogą mieć kilka wierszy (wielopozycyjny
+  paragon/faktura) — dla każdego klucza zatrzymujemy WSZYSTKIE wiersze z
+  jego najnowszego przebiegu, nie tylko jeden, żeby nie ucinać legalnie
+  powtórzonych tej samej pozycji w cenie.
+- `get_incomes_trend`/`get_incomes_raw` liczą agregację w Pythonie (nie w
+  pipeline Mongo) po deduplikacji.
+- Zweryfikowane na żywych danych: różnica między naszą sumą a systemem
+  źródłowym spadła z >500 tys. do ~45 tys. (dedup po `nrParagonu` samym), a
+  po dodaniu `numerFaktury` doprecyzowanie nie zamknęło reszty luki —
+  ostateczne domknięcie wymagało **pełnego reimportu danych od zera** przez
+  program importujący użytkownika (nie tę aplikację — ta tylko czyta z
+  Mongo). Po reimporcie: 0 duplikatów, suma styczeń-sierpień 3 272 304,35 zł
+  vs system źródłowy 3 272 236,08 zł (różnica 68 zł, 0,002%).
+- **Luka danych źródłowych, NIE naprawiona (poza zasięgiem tej aplikacji):**
+  paragony `P 19/02/2026` i `P 339/02/2026` brakują w Mongo nawet po pełnym
+  reimporcie — sąsiednie numery z tego samego dnia istnieją, zero śladu w
+  całej bazie (też pod inną formą zapisu), i nie ma dla nich anulacji. Do
+  sprawdzenia bezpośrednio w systemie hotelowym, jeśli ma to znaczenie.
+
+**Nowe zakładki (na nowej podstronie, patrz niżej):**
+- **Płatności** — rozbicie sprzedaży wg `formaPatnosci` (Gotówka/Przelew/
+  Karta płatnicza + rzadkie płatności mieszane/puste) per miesiąc, wykres
+  słupkowy skumulowany + tabele. `GET /api/hotel/payment-methods`.
+- **Rekordy** — podgląd surowych wierszy z Mongo (bez deduplikacji), wiersze
+  oznaczone `is_duplicate` wg tej samej reguły co wykres, przycisk usuwania
+  pojedynczego rekordu z potwierdzeniem (nieodwracalne). `GET/DELETE
+  /api/hotel/records[/{id}]`.
+
+**Wydzielenie z Analityki na osobną podstronę `/hotel.html`** (na życzenie
+użytkownika — dane Mongo to inny temat niż reszta Analityki, która jest
+SQL-owa): `frontend/hotel.html` + `frontend/hotel.js` (self-contained, bez
+buildu, ten sam wzorzec co `analityka.js`/`mailer.js` — duplikacja
+helperów typu `fmtMoney`/`qs` celowa, zgodna z resztą projektu). Zakładki
+Hotel/Płatności/Rekordy usunięte z `analityka.html`/`analityka.js`. Ikonka
+🏨 w nagłówkach Faktur/Analityki/Mailera prowadzi do nowej strony.
+
 ## Dalszy plan działania
 
+Zwięzłe podsumowanie tej listy jest też w `RAPORT_ANALITYKA.md` (sekcja 4) —
+ten dokument tu zostaje źródłem prawdy, na bieżąco odznaczany/czyszczony.
+
+- [ ] **Obsada/ADR/RevPAR z `dailyhotelstats`** — użytkownik świadomie
+      zostawił to na później (start od `incomes`). Dane sięgają 2015, dobra
+      podstawa pod plany sprzedażowe/obłożenie.
+- [ ] **Kanały sprzedaży i typy pokoi z `reservations`** — jw., też
+      świadomie odłożone.
+
+- [x] ~~**CornerMarket** — jedyny z 6 głównych brandów bez śledzonego przychodu.~~
+      Dodany 2026-08-24, uprawnienia SQL nadane i zweryfikowane — wszystkie 6
+      brandów ma teraz przychód.
 - [ ] **Alerty mailowe przy odchyleniu od prognozy** — apka ma już działający
       mailer; wymaga ustalenia progu (%), odbiorców i harmonogramu przed
       implementacją.
-
-- [ ] **CornerMarket** — jedyny z 6 głównych brandów bez śledzonego przychodu w
-      `Przychod_Netto`. Jak użytkownik go doda, dashboard automatycznie go
-      uwzględni (nic nie trzeba zmieniać w kodzie).
 - [ ] **Pozostałe działy jako przychód** — jeśli któryś z „Pozostałych działów"
       (dziś: Kormoran, Konrad, Duba, Aurena, DRUK, „brak działu") jednak
       zacznie generować przychód, trzeba będzie dopisać go do
@@ -240,8 +341,18 @@ kwiecień-czerwiec +27% do +51%).
       "prognoza tylko dla kosztów cyklicznych" (stabilniejsze dane, tu
       faktyczny model ma najwięcej sensu). Do rozważenia jak segmentacja
       kontrahentów się ustabilizuje.
-- [ ] **README** — krótki opis podstrony „Analityka" (wszystkie 6 zakładek,
-      w tym prognoza, dochód i trend wg działu) wciąż nie dodany.
+- [ ] **Backtest dla zakładki Trend kosztów** — `get_spend_forecast_backtest`
+      już istnieje w backendzie (endpoint `/api/analytics/forecast-backtest`
+      działa), ale nie ma jeszcze UI — dziś backtest jest widoczny tylko w
+      „Trend wg działu” (przychód/dochód).
+- [ ] **README** — krótki opis podstrony „Analityka" (wszystkie 7 zakładek,
+      w tym Przegląd, prognoza, dochód, trend wg działu i backtest) wciąż
+      nie dodany.
+- [ ] **Przyczyna zrywania połączeń SQL** — nadal nieznana (prawdopodobnie
+      limit bezczynności narzucony przez sieć/Docker NAT/SQL Server, poza
+      zasięgiem tej aplikacji). Dziś w pełni wchłaniana przez heartbeat +
+      retry, ale gdyby ktoś kiedyś miał dostęp do konfiguracji sieci między
+      kontenerem a `192.168.30.14`, warto by to zdiagnozować u źródła.
 - [ ] **Sprzątnięcie tego pliku planu** — do usunięcia po potwierdzeniu przez
       użytkownika, że całość (w tym wygląd, weryfikowany przez użytkownika w
       przeglądarce) działa zgodnie z oczekiwaniami.
