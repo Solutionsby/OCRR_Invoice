@@ -14,7 +14,7 @@ services:
       - DB_DRIVER=ODBC Driver 18 for SQL Server
     volumes:
       # Zamontowany dysk QNAP w trybie tylko do odczytu
-      - /mnt/qnap:/data:ro
+      - /mnt/qnap:/data:/data
       # Pliki konfiguracyjne z prawami zapisu
       - ./json:/app/json
     restart: unless-stopped
