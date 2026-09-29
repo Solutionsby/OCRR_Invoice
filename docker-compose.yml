@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   api:
     build: .
@@ -6,38 +8,13 @@ services:
     env_file:
       - .env
     environment:
-      # core/paths.py czyta tę zmienną jako nadrzędną wobec logiki
-      # platform.system() — w kontenerze zawsze chcemy /data.
+      # Kontener szuka faktur w katalogu /data
       - INVOICES_BASE_PATH=/data
-      # Nadpisuje DB_DRIVER z .env (tam zostaje Driver 17 dla CLI na hoście) —
-      # w obrazie jest doinstalowany Driver 18, patrz Dockerfile.
+      # Sterownik bazy danych ODBC wewnątrz kontenera
       - DB_DRIVER=ODBC Driver 18 for SQL Server
     volumes:
-      # Faktury zostają fizycznie na dysku hosta — kontener widzi cały
-      # HOST_DATA_DIR pod /data (patrz INVOICES_BASE_PATH powyżej). Domyślnie
-      # "." (katalog projektu) — dokładnie jak dotąd (faktury_surowe/,
-      # faktury_przetworzone/ jako podfoldery). Na nowym komputerze, z inną
-      # lokalizacją faktur, wystarczy ustawić HOST_DATA_DIR w .env — który
-      # dokładnie podfolder pełni jaką rolę (KSeF/inne/EURO/cel) wybiera się
-      # już z poziomu przeglądarki (⚙️ w sidebarze), bez zmian tutaj.
-      - ${HOST_DATA_DIR:-.}:/data
-      # json/ (settings.json, patterns.json, knowledge_base.json,
-      # dzial_kategoria.json) jest czytany ścieżkami względnymi wobec CWD
-      # (= WORKDIR /app), więc montujemy go osobno pod /app, nie pod /data.
-      # Montujemy CAŁY katalog (nie pojedyncze pliki) celowo: settings.json/
-      # patterns.json są w .gitignore i na świeżym checkoucie repo (nowy
-      # komputer) nie istnieją jeszcze na dysku — bind mount pojedynczego
-      # nieistniejącego pliku każe Dockerowi cicho utworzyć zamiast niego
-      # pusty katalog na hoście, co potem wywala aplikację (open() na
-      # katalogu = IsADirectoryError). json/ zawsze istnieje (jest w repo),
-      # więc ten problem nie występuje — brakujące settings.json/patterns.json
-      # config_manager.py tworzy sam, od środka.
+      # Zamontowany dysk QNAP w trybie tylko do odczytu
+      - /mnt/qnap:/data:ro
+      # Pliki konfiguracyjne z prawami zapisu
       - ./json:/app/json
     restart: unless-stopped
-    # Jeśli DB_SERVER / SMTP_SERVER w .env wskazują na "localhost" — z
-    # wnętrza kontenera trzeba je zmienić na host.docker.internal (na
-    # Docker Desktop dla macOS działa to bez dodatkowej konfiguracji).
-    #
-    # Jeśli dysk z fakturami to zmapowany udział sieciowy (np. Qnap pod
-    # literą I: na Windows) niewidoczny wewnątrz WSL2 — patrz
-    # docker-compose.qnap.yml zamiast ręcznej zmiany tego pliku.
