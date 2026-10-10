@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     build: .
@@ -13,8 +11,8 @@ services:
       # Sterownik bazy danych ODBC wewnątrz kontenera
       - DB_DRIVER=ODBC Driver 18 for SQL Server
     volumes:
-      # Zamontowany dysk QNAP w trybie tylko do odczytu
-      - /mnt/qnap:/data:/data
+      # Zamontowany dysk QNAP (zapis potrzebny — aplikacja przenosi faktury)
+      - /mnt/qnap:/data
       # Pliki konfiguracyjne z prawami zapisu
       - ./json:/app/json
     restart: unless-stopped
